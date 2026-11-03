@@ -13,6 +13,15 @@
   "advancements.thewake.somewhere_new.description": "Sleep where you have never been",
 
   "subtitles.thewake.room_tone": "Room hums",
-  "subtitles.thewake.shutter": "Shutter clicks",
-  "subtitles.thewake.breath": "Someone breathes"
+  "subtitles.thewake.breath": "Someone breathes",
+  "subtitles.thewake.creature.step": "Bare footsteps",
+  "subtitles.thewake.creature.crack": "Joints crack",
+  "subtitles.thewake.creature.breath": "Wet breathing",
+  "subtitles.thewake.creature.scream": "Something screams",
+  "subtitles.thewake.tape.warble": "Tape motor runs",
+  "subtitles.thewake.tape.static": "Static",
+  "subtitles.thewake.tape.click": "Something clicks",
+
+  "death.attack.thewake.looked_away": "%1$s looked away",
+  "death.attack.thewake.looked_away.player": "%1$s looked away"
 }

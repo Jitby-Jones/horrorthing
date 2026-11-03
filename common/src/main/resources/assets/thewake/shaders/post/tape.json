@@ -4,12 +4,13 @@
     ],
     "passes": [
         {
-            "name": "thewake_exposure",
+            "name": "thewake_tape",
             "intarget": "minecraft:main",
             "outtarget": "swap",
             "uniforms": [
                 { "name": "Amount", "values": [ 0.0 ] },
-                { "name": "Seed", "values": [ 0.0 ] }
+                { "name": "Tear", "values": [ 0.0 ] },
+                { "name": "Time", "values": [ 0.0 ] }
             ]
         },
         {

@@ -68,16 +68,16 @@ public final class Haunt {
         }
         state.applyGain(scaled, day(player.serverLevel()), (float) (DAILY_CAP * pace));
         Stage peak = state.peakStage();
-        if (peak.atLeast(Stage.LIKENESS) && state.likenessDay() < 0) {
-            state.setLikenessDay(day(player.serverLevel()));
+        if (peak.atLeast(Stage.HUSH) && state.hushDay() < 0) {
+            state.setHushDay(day(player.serverLevel()));
         }
     }
 
     /** Sets clarity directly (commands), keeping the one-way stage bookkeeping consistent. */
     public static void force(ServerPlayer player, HauntState state, float clarity) {
         state.setClarity(clarity);
-        if (state.peakStage().atLeast(Stage.LIKENESS) && state.likenessDay() < 0) {
-            state.setLikenessDay(day(player.serverLevel()) - 3);
+        if (state.peakStage().atLeast(Stage.HUSH) && state.hushDay() < 0) {
+            state.setHushDay(day(player.serverLevel()) - 3);
         }
     }
 
@@ -86,10 +86,7 @@ public final class Haunt {
             return;
         }
         state.syncDirty = false;
-        boolean armed = WakeConfig.get().pauseEvents && awake(state) && state.peakStage().atLeast(Stage.ROUTINE)
-                && !state.hasFlag("pause_figure") && player.server.isSingleplayerOwner(player.getGameProfile())
-                && !player.server.isPublished();
-        WakeNetwork.send(player, new SyncPayload(state.clarity(), state.stage().ordinal(), armed, state.ended(),
+        WakeNetwork.send(player, new SyncPayload(state.clarity(), state.stage().ordinal(), Hunter.hunting(player), state.ended(),
                 state.lastLayDownDayTime()));
     }
 

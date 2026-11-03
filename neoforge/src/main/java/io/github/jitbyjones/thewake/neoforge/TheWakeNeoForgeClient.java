@@ -39,12 +39,10 @@ final class TheWakeNeoForgeClient {
 
     private static void registerShaders(RegisterShadersEvent event) {
         try {
-            event.registerShader(new ShaderInstance(event.getResourceProvider(), WakeShaders.NIGHT, DefaultVertexFormat.NEW_ENTITY),
-                    shader -> WakeShaders.night = shader);
             event.registerShader(new ShaderInstance(event.getResourceProvider(), WakeShaders.RIBBON, DefaultVertexFormat.NEW_ENTITY),
                     shader -> WakeShaders.ribbon = shader);
         } catch (IOException e) {
-            TheWake.LOG.error("Could not load the night-sky shaders; falling back to textures", e);
+            TheWake.LOG.error("Could not load the finale's ground shader; falling back to a texture", e);
         }
     }
 }

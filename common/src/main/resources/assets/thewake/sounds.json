@@ -3,15 +3,39 @@
     "sounds": [ { "name": "thewake:room_tone" } ],
     "subtitle": "subtitles.thewake.room_tone"
   },
-  "shutter": {
-    "sounds": [ { "name": "thewake:shutter" } ],
-    "subtitle": "subtitles.thewake.shutter"
-  },
   "breath": {
     "sounds": [ { "name": "thewake:breath" } ],
     "subtitle": "subtitles.thewake.breath"
   },
   "stillness": {
     "sounds": [ { "name": "thewake:stillness", "stream": true } ]
+  },
+  "creature.step": {
+    "sounds": [ "thewake:creature/step1", "thewake:creature/step2", "thewake:creature/step3" ],
+    "subtitle": "subtitles.thewake.creature.step"
+  },
+  "creature.crack": {
+    "sounds": [ "thewake:creature/crack1", "thewake:creature/crack2", "thewake:creature/crack3" ],
+    "subtitle": "subtitles.thewake.creature.crack"
+  },
+  "creature.breath": {
+    "sounds": [ "thewake:creature/breath1", "thewake:creature/breath2" ],
+    "subtitle": "subtitles.thewake.creature.breath"
+  },
+  "creature.scream": {
+    "sounds": [ { "name": "thewake:creature/scream" } ],
+    "subtitle": "subtitles.thewake.creature.scream"
+  },
+  "tape.warble": {
+    "sounds": [ { "name": "thewake:tape/warble" } ],
+    "subtitle": "subtitles.thewake.tape.warble"
+  },
+  "tape.static": {
+    "sounds": [ { "name": "thewake:tape/static" } ],
+    "subtitle": "subtitles.thewake.tape.static"
+  },
+  "tape.click": {
+    "sounds": [ { "name": "thewake:tape/click" } ],
+    "subtitle": "subtitles.thewake.tape.click"
   }
 }

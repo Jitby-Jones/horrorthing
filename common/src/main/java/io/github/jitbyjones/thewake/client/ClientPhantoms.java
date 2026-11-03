@@ -31,6 +31,13 @@ public final class ClientPhantoms {
 
     static void tick() {
         ALL.values().removeIf(p -> !p.tick());
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.level != null && !ALL.isEmpty()) {
+            net.minecraft.client.Camera camera = mc.gameRenderer.getMainCamera();
+            for (ClientPhantom p : ALL.values()) {
+                p.gaze.tick(p, camera, mc.level.random);
+            }
+        }
     }
 
     public static Collection<ClientPhantom> all() {

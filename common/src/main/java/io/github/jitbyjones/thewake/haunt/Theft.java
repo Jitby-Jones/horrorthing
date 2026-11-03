@@ -1,5 +1,6 @@
 package io.github.jitbyjones.thewake.haunt;
 
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.config.WakeConfig;
 import io.github.jitbyjones.thewake.net.FxPayload;
 import io.github.jitbyjones.thewake.net.WakeNetwork;
@@ -34,7 +35,7 @@ final class Theft {
         if (gameTime % 20L != 0L || state.debt() <= 0 || !WakeConfig.get().blinkEvents || level.getLevelData().isHardcore()) {
             return;
         }
-        if (!state.peakStage().atLeast(Stage.THEFT) || Haunt.isNight(level) || Beats.hush(state, level)) {
+        if (!state.peakStage().atLeast(Stage.HUNT) || Haunt.isNight(level) || Beats.hush(state, level)) {
             return;
         }
         if (!state.ready("blink", gameTime) || player.getRandom().nextFloat() > 1.0F / 240.0F || !safeMoment(player)) {
@@ -84,7 +85,7 @@ final class Theft {
             // Where you were standing is still occupied.
             BlockPos where = BlockPos.containing(before);
             if (Spots.standable(level, where)) {
-                Exposures.still(player, state, where, Spots.yawTowards(before, to), Phantom.Stance.STAND).setFocus(1.0F);
+                Hunter.adopt(player, Appearances.still(player, where, Spots.yawTowards(before, to), CreaturePose.STAND));
             }
         });
     }

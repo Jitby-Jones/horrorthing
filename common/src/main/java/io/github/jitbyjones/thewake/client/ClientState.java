@@ -4,7 +4,8 @@ package io.github.jitbyjones.thewake.client;
 public final class ClientState {
     public static float clarity;
     public static int stage;
-    public static boolean pauseArmed;
+    /** It is moving right now (the player is in a lapse and it is coming). */
+    public static boolean hunting;
     public static boolean ended;
     /** Day time the player last lay down: where clocks stop near it. -1 if never. */
     public static long lastLayDown = -1L;
@@ -23,7 +24,7 @@ public final class ClientState {
     public static void reset() {
         clarity = 0.0F;
         stage = 0;
-        pauseArmed = false;
+        hunting = false;
         ended = false;
         lastLayDown = -1L;
         blackoutStart = blackoutEnd = 0L;

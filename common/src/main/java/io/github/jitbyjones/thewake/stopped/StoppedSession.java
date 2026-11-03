@@ -1,5 +1,6 @@
 package io.github.jitbyjones.thewake.stopped;
 
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.haunt.Breadcrumbs;
 import io.github.jitbyjones.thewake.haunt.Household;
 import io.github.jitbyjones.thewake.haunt.Spots;
@@ -54,6 +55,12 @@ final class StoppedSession {
     private BlockPos lastFresh;
     /** Ticks spent standing at the end of its paths with you out of reach. */
     private int waited;
+    /** Where it really is. The picture only catches up a few times a second: stop-motion. */
+    @Nullable
+    private Vec3 truePos;
+    private float heading;
+    private int frameClock;
+    private boolean frameB;
 
     // escape
     @Nullable
@@ -108,6 +115,26 @@ final class StoppedSession {
         }
     }
 
+    Vec3 here() {
+        return truePos != null ? truePos : wake.pos();
+    }
+
+    /**
+     * The one time it moves while you watch, and it does not move the way things move: the picture
+     * cuts from one frame of its walk to the next, a whole step at a time.
+     */
+    private void publish(boolean now) {
+        if (!now && ++frameClock < 6) {
+            return;
+        }
+        frameClock = 0;
+        boolean walking = here().distanceTo(wake.pos()) > 0.05;
+        frameB = !frameB;
+        wake.moveTo(here(), heading)
+                .setPose(walking ? (frameB ? CreaturePose.WALK_B : CreaturePose.WALK_A) : CreaturePose.STAND)
+                .setHead(Mth.clamp(Mth.wrapDegrees(Spots.yawTowards(here(), player.position()) - heading), -110.0F, 110.0F), 0.0F);
+    }
+
     void getUp() {
         if (phase != Phase.IN_BED) {
             return;
@@ -116,8 +143,9 @@ final class StoppedSession {
         // There is no getting up. It was lying down; now it is standing beside the bed.
         BlockPos side = Spots.bedside(level, oldBed, facing, player.position());
         Vec3 at = side != null ? Vec3.atBottomCenterOf(side) : Vec3.atBottomCenterOf(oldBed).add(0, 0.6, 0);
-        wake.setMode(Phantom.Mode.WALKER).setStance(Phantom.Stance.STAND).setBedDirection(-1)
-                .moveTo(at, Spots.yawTowards(at, player.position()));
+        heading = Spots.yawTowards(at, player.position());
+        wake.setMode(Phantom.Mode.WALKER).setPose(CreaturePose.STAND).setBedDirection(-1).moveTo(at, heading);
+        truePos = at;
         repath = 0;
     }
 
@@ -138,11 +166,13 @@ final class StoppedSession {
                 return;
             }
         }
+        publish(true);
     }
 
     private boolean pursue(boolean audible) {
         Vec3 target = player.position();
-        if (wake.pos().distanceTo(target) < 0.9) {
+        if (here().distanceTo(target) < 0.9) {
+            publish(true);
             return true;
         }
         if (--repath <= 0) {
@@ -156,13 +186,13 @@ final class StoppedSession {
             }
             path.clear();
             if (goal != null) {
-                path.addAll(route(BlockPos.containing(wake.pos()), goal));
+                path.addAll(route(BlockPos.containing(here()), goal));
             }
         }
 
         // It moves like you: smoothly, at a walk, a little faster the longer this goes on.
         double speed = 0.135 * (1.0 + Math.min(age, 2400) / 6000.0);
-        Vec3 pos = wake.pos();
+        Vec3 pos = here();
         double budget = speed;
         while (budget > 0.0 && !path.isEmpty()) {
             BlockPos nextCrumb = path.peekFirst();
@@ -207,10 +237,14 @@ final class StoppedSession {
         if (alerted != null && pos.distanceTo(Vec3.atBottomCenterOf(alerted)) < 1.5) {
             alerted = null;
         }
-        double moved = pos.distanceTo(wake.pos());
-        float yaw = moved > 0.001 ? Spots.yawTowards(wake.pos(), pos) : wake.yaw();
-        wake.moveTo(pos, Mth.approachDegrees(wake.yaw(), yaw, 30.0F));
-        wake.setStance(moved > 0.01 ? Phantom.Stance.WALK : Phantom.Stance.STAND);
+        double moved = pos.distanceTo(here());
+        if (moved > 0.001) {
+            heading = Mth.approachDegrees(heading, Spots.yawTowards(here(), pos), 30.0F);
+        }
+        truePos = pos;
+        if (audible) {
+            publish(false);
+        }
         if (audible) {
             stepAccumulator += moved;
             if (stepAccumulator > 0.8) {

@@ -1,5 +1,6 @@
 package io.github.jitbyjones.thewake.haunt;
 
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.config.WakeConfig;
 import io.github.jitbyjones.thewake.net.FxPayload;
@@ -71,38 +72,10 @@ public final class Lapses {
 
     // ---- going idle -----------------------------------------------------------------------
 
+    /** Standing idle is a lapse: the hunter moves while it lasts (see {@link Hunter}). */
     static void onIdleBegin(ServerPlayer player, HauntState state) {
         state.idleLapseOpen = true;
         state.idleLapseTicks = 0;
-        if (!Haunt.awake(state) || !state.peakStage().atLeast(Stage.SIGHTINGS) || Beats.hush(state, player.serverLevel())) {
-            return;
-        }
-        long gameTime = player.level().getGameTime();
-        if (!state.ready("idle_sighting", gameTime) || Beats.silent(player)) {
-            return;
-        }
-        Phantom phantom = Exposures.sighting(player, state, 28.0F);
-        if (phantom == null) {
-            return;
-        }
-        state.cooldown("idle_sighting", gameTime, 8000L);
-        // Placed during the lapse, so it is still there when the player comes back; it develops
-        // while nobody is watching, and is fully sharp by then.
-        phantom.setLapseGeneration(state.lapseCount() + 1).setOpacity(0.0F).setFadeSpeed(0.006F);
-        phantom.setBehavior(new PhantomBehavior() {
-            private boolean developed;
-
-            @Override
-            public void tick(Phantom p, ServerPlayer owner) {
-                if (!developed) {
-                    developed = true;
-                    p.setOpacity(0.9F);
-                }
-                if (!state.idleLapseOpen) {
-                    p.setFadeSpeed(1.0F);
-                }
-            }
-        });
     }
 
     static void onIdleEnd(ServerPlayer player, HauntState state) {
@@ -111,36 +84,23 @@ public final class Lapses {
         state.idleLapseTicks = 0;
         state.lapse();
         Haunt.gain(player, state, Math.min(0.015F, 0.004F + minutes * 0.002F));
+        if (Haunt.awake(state) && state.stage() == Stage.WATCHING) {
+            Hunter.maybeGiant(player, state);
+        }
     }
 
     // ---- the pause menu (singleplayer) ----------------------------------------------------
 
+    /**
+     * Singleplayer, on resume. The pause itself was a lapse like any menu (see {@link Hunter});
+     * this report only matters in the Stopped, which moves on by the real time that passed.
+     */
     public static void onPauseReport(ServerPlayer player, PausePayload pause) {
         if (!WakeConfig.get().pauseEvents || !player.server.isSingleplayerOwner(player.getGameProfile()) || player.server.isPublished()) {
             return;
         }
-        HauntState state = Haunt.state(player);
-        int millis = Mth.clamp(pause.millis(), 0, 3_600_000);
         if (StoppedManager.isIn(player)) {
-            // Pausing in the Stopped moves it forward by the real time that passed.
-            StoppedManager.onPaused(player, millis);
-            return;
-        }
-        if (pause.figureSeen() && state.peakStage().atLeast(Stage.ROUTINE)) {
-            state.setFlag("pause_figure");
-        }
-        // Alt-tabbing to look something up is not a lapse. Walking away from the game is.
-        if (millis < 120_000 || !Haunt.eligible(player)) {
-            return;
-        }
-        state.lapse();
-        Haunt.gain(player, state, Math.min(0.01F, 0.004F + millis / 60_000.0F * 0.001F));
-        long gameTime = player.level().getGameTime();
-        if (Haunt.awake(state) && state.peakStage().atLeast(Stage.SIGHTINGS) && !pause.figureSeen()
-                && !Beats.hush(state, player.serverLevel()) && state.ready("pause_sighting", gameTime) && !Beats.silent(player)) {
-            if (Exposures.sighting(player, state, 22.0F) != null) {
-                state.cooldown("pause_sighting", gameTime, 9000L);
-            }
+            StoppedManager.onPaused(player, Mth.clamp(pause.millis(), 0, 3_600_000));
         }
     }
 
@@ -161,13 +121,8 @@ public final class Lapses {
         state.lastHitchTick = now;
         state.lapse();
         Haunt.gain(player, state, 0.003F);
-        long gameTime = player.level().getGameTime();
-        if (state.peakStage().atLeast(Stage.SIGHTINGS) && !Beats.hush(state, player.serverLevel())
-                && state.ready("hitch_sighting", gameTime) && player.getRandom().nextFloat() < 0.5F) {
-            if (Exposures.sighting(player, state, 20.0F) != null) {
-                state.cooldown("hitch_sighting", gameTime, 12000L);
-            }
-        }
+        // The frames you did not see: it took its steps in them.
+        Hunter.jump(player, state, millis);
     }
 
     // ---- logging off ----------------------------------------------------------------------
@@ -202,11 +157,13 @@ public final class Lapses {
             if (player.hasDisconnected() || !level.isLoaded(bed)) {
                 return;
             }
+            // While you were gone it stood by your bed the whole time.
             Direction facing = Spots.bedFacing(level, bed);
             BlockPos side = facing == null ? null : Spots.bedside(level, bed, facing, player.position());
-            if (side != null) {
+            if (side != null && !Spots.visibleFrom(player, side)) {
                 Vec3 at = Vec3.atBottomCenterOf(side);
-                Exposures.still(player, state, side, Spots.yawTowards(at, Vec3.atCenterOf(bed)), Phantom.Stance.LOOK_DOWN);
+                Hunter.adopt(player, Appearances.still(player, side, Spots.yawTowards(at, Vec3.atCenterOf(bed)), CreaturePose.BEDSIDE)
+                        .setTouch(0.0, false));
             }
         });
     }
@@ -217,6 +174,7 @@ public final class Lapses {
         state.idleLapseOpen = false;
         StoppedManager.onLogout(player);
         Phantoms.forget(player.getUUID());
+        Hunter.forget(player.getUUID());
     }
 
     // ---- keeping the night ----------------------------------------------------------------

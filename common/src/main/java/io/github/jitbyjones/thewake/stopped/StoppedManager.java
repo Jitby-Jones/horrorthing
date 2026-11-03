@@ -1,5 +1,6 @@
 package io.github.jitbyjones.thewake.stopped;
 
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.haunt.Advancements;
 import io.github.jitbyjones.thewake.haunt.Haunt;
@@ -119,8 +120,8 @@ public final class StoppedManager {
 
         // It is in your bed.
         Vec3 pillow = Vec3.atBottomCenterOf(head).add(0.0, 0.6875, 0.0);
-        session.wake = Phantoms.create(player, pillow, facing.toYRot(), Phantom.Mode.SLEEPER, Phantom.Stance.LIE)
-                .setBedDirection(facing.get2DDataValue()).setOpacity(1.0F).setSmear(0.0F).setFocus(1.0F)
+        session.wake = Phantoms.create(player, pillow, facing.getOpposite().toYRot(), Phantom.Mode.SLEEPER, CreaturePose.LIE)
+                .setBedDirection(facing.get2DDataValue()).setFlags(Phantom.FLAG_NO_TWITCH)
                 .setTouch(0.0, false).setLapseGeneration(-1);
 
         LongArrayList positions = new LongArrayList();
@@ -436,9 +437,9 @@ public final class StoppedManager {
         if (near && existing == null) {
             Direction facing = Direction.from2DDataValue(Math.max(0, state.keptBedDirection()));
             Vec3 pillow = Vec3.atBottomCenterOf(bed).add(0.0, 0.6875, 0.0);
-            Phantoms.create(player, pillow, facing.toYRot(), Phantom.Mode.SLEEPER, Phantom.Stance.LIE)
-                    .setBedDirection(facing.get2DDataValue()).setOpacity(1.0F).setSmear(0.0F).setFocus(1.0F)
-                    .setTouch(0.0, false).setLapseGeneration(-1).setFace(0.85F);
+            Phantoms.create(player, pillow, facing.getOpposite().toYRot(), Phantom.Mode.SLEEPER, CreaturePose.LIE)
+                    .setBedDirection(facing.get2DDataValue()).setFlags(Phantom.FLAG_NO_TWITCH)
+                    .setTouch(0.0, false).setLapseGeneration(-1);
         } else if (!near && existing != null) {
             Phantoms.remove(player, existing);
         }
@@ -456,6 +457,6 @@ public final class StoppedManager {
         state.clearFlag("head_turn");
         state.forcePeak(Stage.ROUTINE);
         state.setClarity(0.5F);
-        state.setLikenessDay(-1L);
+        state.setHushDay(-1L);
     }
 }

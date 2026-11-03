@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.client.WakeClient;
 import io.github.jitbyjones.thewake.client.render.WakeShaders;
+import io.github.jitbyjones.thewake.net.AttackPayload;
 import io.github.jitbyjones.thewake.net.FxPayload;
 import io.github.jitbyjones.thewake.net.PhantomPayload;
 import io.github.jitbyjones.thewake.net.StoppedPayload;
@@ -31,9 +32,9 @@ public final class TheWakeFabricClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(FxPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
         ClientPlayNetworking.registerGlobalReceiver(StoppedPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
         ClientPlayNetworking.registerGlobalReceiver(PhantomPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
+        ClientPlayNetworking.registerGlobalReceiver(AttackPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
 
         CoreShaderRegistrationCallback.EVENT.register(context -> {
-            context.register(WakeShaders.NIGHT, DefaultVertexFormat.NEW_ENTITY, shader -> WakeShaders.night = shader);
             context.register(WakeShaders.RIBBON, DefaultVertexFormat.NEW_ENTITY, shader -> WakeShaders.ribbon = shader);
         });
 

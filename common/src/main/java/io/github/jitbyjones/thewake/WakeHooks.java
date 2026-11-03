@@ -27,6 +27,15 @@ public final class WakeHooks {
         Director.tick(server);
     }
 
+    /** Singleplayer, paused: only the creature moves (see {@code IntegratedServerMixin}). */
+    public static void onPausedTick(MinecraftServer server) {
+        try {
+            io.github.jitbyjones.thewake.haunt.Hunter.tickPaused(server);
+        } catch (RuntimeException e) {
+            TheWake.LOG.error("Paused tick failed", e);
+        }
+    }
+
     public static void onServerStopping(MinecraftServer server) {
         StoppedManager.onServerStopping(server);
     }
@@ -73,7 +82,9 @@ public final class WakeHooks {
             return null;
         }
         Vec3 bed = Vec3.atCenterOf(head);
-        Phantom near = Phantoms.nearest(player, 96.0, p -> p.mode() == Phantom.Mode.EXPOSURE && p.pos().distanceToSqr(bed) < 64.0);
+        // It is standing right there. Vanilla has the words for it.
+        Phantom near = Phantoms.nearest(player, 96.0, p -> p.mode() == Phantom.Mode.STILL && p.scale() == 1.0F
+                && p.pos().distanceToSqr(bed) < 25.0);
         if (near != null) {
             return Player.BedSleepingProblem.NOT_SAFE;
         }

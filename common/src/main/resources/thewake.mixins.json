@@ -12,6 +12,8 @@
   "client": [
     "client.ClientPacketListenerMixin",
     "client.GameRendererMixin",
+    "client.IntegratedServerMixin",
+    "client.InventoryScreenMixin",
     "client.ItemPropertiesMixin",
     "client.LevelRendererMixin",
     "client.MusicManagerMixin",

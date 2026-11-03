@@ -6,16 +6,16 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /**
- * Server to client: the few facts the client needs ahead of time (the pause menu cannot ask), and
+ * Server to client: the few facts the client needs ahead of time (whether it is moving right now), and
  * the minute the player last lay down, which is where clocks stop near it.
  */
-public record SyncPayload(float clarity, int stage, boolean pauseArmed, boolean ended, long lastLayDown) implements CustomPacketPayload {
+public record SyncPayload(float clarity, int stage, boolean hunting, boolean ended, long lastLayDown) implements CustomPacketPayload {
     public static final Type<SyncPayload> TYPE = new Type<>(TheWake.id("sync"));
     public static final StreamCodec<FriendlyByteBuf, SyncPayload> CODEC = StreamCodec.of(
             (buf, p) -> {
                 buf.writeFloat(p.clarity);
                 buf.writeVarInt(p.stage);
-                buf.writeBoolean(p.pauseArmed);
+                buf.writeBoolean(p.hunting);
                 buf.writeBoolean(p.ended);
                 buf.writeLong(p.lastLayDown);
             },

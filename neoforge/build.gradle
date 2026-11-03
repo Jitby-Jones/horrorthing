@@ -23,7 +23,7 @@ neoForge {
             gameDirectory = project.file('runs/client')
             // ./gradlew :neoforge:runClient -PwakeDemo : stage every beat in a world called "demo" and screenshot it.
             if (project.hasProperty('wakeDemo')) {
-                programArguments.addAll('--quickPlaySingleplayer', 'demo')
+                programArguments.addAll('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
                 systemProperty('thewake.demo', 'true')
             }
         }

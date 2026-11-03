@@ -1,5 +1,6 @@
 package io.github.jitbyjones.thewake.haunt;
 
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.config.WakeConfig;
 import io.github.jitbyjones.thewake.phantom.Phantom;
@@ -39,6 +40,7 @@ public final class Director {
         PENDING.clear();
         serverTicks = 0;
         Phantoms.onServerStopped();
+        Hunter.onServerStopped();
     }
 
     public static void tick(MinecraftServer server) {
@@ -93,6 +95,7 @@ public final class Director {
         ServerLevel level = player.serverLevel();
         trackSleep(player, state, level);
         trackActivity(player, state);
+        Hunter.tick(player, state);
         if (gameTime % 10L == 0L) {
             trackSteps(player, state);
         }
@@ -199,8 +202,8 @@ public final class Director {
         BlockPos side = Spots.groundNear(level, old.getX(), old.getY(), old.getZ(), 2);
         if (side != null) {
             Vec3 at = Vec3.atBottomCenterOf(side);
-            Phantoms.create(player, at, Spots.yawTowards(at, player.position()), Phantom.Mode.EXPOSURE, Phantom.Stance.STAND)
-                    .setOpacity(0.95F).setSmear(0.0F).setFocus(1.0F).setTouch(1.2, false).setLapseGeneration(-1);
+            Phantoms.create(player, at, Spots.yawTowards(at, player.position()), Phantom.Mode.STILL, CreaturePose.STAND)
+                    .setTouch(1.2, false).setLapseGeneration(-1);
         }
     }
 }

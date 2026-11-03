@@ -1,35 +1,39 @@
 package io.github.jitbyjones.thewake.phantom;
 
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import javax.annotation.Nullable;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * One image of the Wake, as the server tracks it. Only its owner is ever told it exists, and only
- * their client draws it: no entity, no radar dot, nothing for anyone else to see or kill.
+ * One appearance of the creature, as the server tracks it. Only its owner is ever told it exists,
+ * and only their client draws it: no entity, no radar dot, nothing for anyone else to see or hit.
  *
- * <p>Three photographic signals with three meanings: {@link #opacity} is how long it stood there,
- * {@link #smear} is that it was moving, {@link #focus} is how well it knows you.
+ * <p>It never moves while its owner is watching the world. Everything that changes it happens in
+ * a lapse, and the client shows each change as a cut, not a motion: stop-motion.
  */
 public final class Phantom {
-    public enum Mode { EXPOSURE, WALKER, SLEEPER }
+    public enum Mode { STILL, WALKER, SLEEPER }
 
-    public enum Stance { STAND, LOOK_DOWN, WALK, LIE, FACE_AWAY }
+    /** Lit as if by a flash, whatever the light around it. */
+    public static final int FLAG_LIT = 1;
+    /** The server is turning the head; the client must not add its own looking or twitching. */
+    public static final int FLAG_SCRIPTED_HEAD = 2;
+    /** Never twitches, even in the corner of the eye. */
+    public static final int FLAG_NO_TWITCH = 4;
 
     final int id;
     Vec3 pos;
     float yaw;
     Mode mode;
-    Stance stance;
-    float opacity;
-    float smear;
-    float focus;
+    CreaturePose pose;
     float headYaw;
     float headPitch;
-    float headSmear;
+    float jaw;
+    float scale = 1.0F;
+    int flags;
     int bedDirection = -1;
-    float fadeSpeed = 1.0F;
-    float face;
+    net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension;
 
     int life = -1;
     int lapseGeneration = -1;
@@ -43,22 +47,21 @@ public final class Phantom {
     boolean removed;
     int dissolveTicks = -1;
 
-    Phantom(int id, Vec3 pos, float yaw, Mode mode, Stance stance) {
+    Phantom(int id, Vec3 pos, float yaw, Mode mode, CreaturePose pose) {
         this.id = id;
         this.pos = pos;
         this.yaw = yaw;
         this.mode = mode;
-        this.stance = stance;
+        this.pose = pose;
     }
 
     public int id() { return id; }
     public Vec3 pos() { return pos; }
     public float yaw() { return yaw; }
     public Mode mode() { return mode; }
-    public Stance stance() { return stance; }
-    public float opacity() { return opacity; }
-    public float smear() { return smear; }
-    public float focus() { return focus; }
+    public CreaturePose pose() { return pose; }
+    public float scale() { return scale; }
+    public float headYaw() { return headYaw; }
     public boolean isRemoved() { return removed; }
     public boolean isDissolving() { return dissolveTicks >= 0; }
 
@@ -83,55 +86,43 @@ public final class Phantom {
         return this;
     }
 
-    public Phantom setStance(Stance stance) {
-        this.stance = stance;
-        dirty = true;
+    public Phantom setPose(CreaturePose pose) {
+        if (this.pose != pose) {
+            this.pose = pose;
+            dirty = true;
+        }
         return this;
     }
 
-    public Phantom setOpacity(float opacity) {
-        this.opacity = Mth.clamp(opacity, 0.0F, 1.0F);
-        dirty = true;
-        return this;
-    }
-
-    public Phantom setSmear(float smear) {
-        this.smear = Mth.clamp(smear, 0.0F, 1.0F);
-        dirty = true;
-        return this;
-    }
-
-    public Phantom setFocus(float focus) {
-        this.focus = Mth.clamp(focus, 0.0F, 1.0F);
-        dirty = true;
-        return this;
-    }
-
-    /** Degrees relative to the body. Past about 75 degrees no neck should go. */
-    public Phantom setHead(float yawOffset, float pitch, float smear) {
+    /** Degrees relative to the body. Past about 75 degrees no neck should go; this one does. */
+    public Phantom setHead(float yawOffset, float pitch) {
         this.headYaw = yawOffset;
         this.headPitch = pitch;
-        this.headSmear = Mth.clamp(smear, 0.0F, 1.0F);
         dirty = true;
         return this;
     }
 
-    /** 0..1: how much of the player's own face shows on its head. Used twice in the whole mod. */
-    public Phantom setFace(float face) {
-        this.face = Mth.clamp(face, 0.0F, 1.0F);
+    /** Extra jaw opening in degrees, on top of the pose's own. */
+    public Phantom setJaw(float degrees) {
+        this.jaw = degrees;
+        dirty = true;
+        return this;
+    }
+
+    public Phantom setScale(float scale) {
+        this.scale = scale;
+        dirty = true;
+        return this;
+    }
+
+    public Phantom setFlags(int flags) {
+        this.flags = flags;
         dirty = true;
         return this;
     }
 
     public Phantom setBedDirection(int direction2d) {
         this.bedDirection = direction2d;
-        dirty = true;
-        return this;
-    }
-
-    /** Fraction of the remaining opacity difference the client closes per tick. */
-    public Phantom setFadeSpeed(float perTick) {
-        this.fadeSpeed = Mth.clamp(perTick, 0.002F, 1.0F);
         dirty = true;
         return this;
     }

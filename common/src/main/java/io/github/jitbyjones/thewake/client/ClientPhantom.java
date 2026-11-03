@@ -1,137 +1,116 @@
 package io.github.jitbyjones.thewake.client;
 
+import io.github.jitbyjones.thewake.client.creature.Gaze;
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.net.PhantomPayload;
 import io.github.jitbyjones.thewake.phantom.Phantom;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-/** Client copy of one image, with interpolation. */
+/**
+ * Client copy of one appearance. Position, facing and pose never interpolate: every change is a
+ * cut, like a frame of stop-motion. Only a head the server is turning moves smoothly.
+ */
 public final class ClientPhantom {
     public final int id;
-    public Phantom.Mode mode = Phantom.Mode.EXPOSURE;
-    public Phantom.Stance stance = Phantom.Stance.STAND;
+    public Phantom.Mode mode = Phantom.Mode.STILL;
+    public CreaturePose pose = CreaturePose.STAND;
     public int bedDirection = -1;
+    public int flags;
 
     public Vec3 pos;
-    public Vec3 prevPos;
-    private Vec3 targetPos;
     public float yaw;
-    public float prevYaw;
-    private float targetYaw;
+    public float scale = 1.0F;
 
-    public float opacity;
-    public float prevOpacity;
-    private float targetOpacity;
-    private float fadeSpeed = 1.0F;
-    public boolean dissolving;
-
-    public float smear;
-    public float focus;
     public float headYaw;
     public float prevHeadYaw;
     private float targetHeadYaw;
     public float headPitch;
     public float prevHeadPitch;
     private float targetHeadPitch;
-    public float headSmear;
-    public float face;
-    public float prevFace;
-    private float targetFace;
+    public float jaw;
+    public float prevJaw;
+    private float targetJaw;
 
-    public float walkPos;
-    public float prevWalkPos;
-    public float walkSpeed;
-    /** Recent motion, for the direction of the smear. */
-    public Vec3 motion = Vec3.ZERO;
+    /** What the client adds on its own: looking at you when you are not looking, twitching at the edge of sight. */
+    public final Gaze gaze = new Gaze();
+
+    public boolean dissolving;
+    public int dissolveAge;
     public int age;
+    /** Client ticks since the last cut (a jump in position or pose). */
+    public int sinceCut;
     private boolean fresh = true;
 
     ClientPhantom(int id, Vec3 pos) {
         this.id = id;
         this.pos = pos;
-        this.prevPos = pos;
-        this.targetPos = pos;
     }
 
     void apply(PhantomPayload p) {
         Vec3 newPos = new Vec3(p.x(), p.y(), p.z());
-        Phantom.Mode newMode = Phantom.Mode.values()[Mth.clamp(p.mode(), 0, Phantom.Mode.values().length - 1)];
-        boolean modeChanged = !fresh && newMode != mode;
-        mode = newMode;
-        stance = Phantom.Stance.values()[Mth.clamp(p.stance(), 0, Phantom.Stance.values().length - 1)];
+        CreaturePose newPose = CreaturePose.byId(p.pose());
+        if (!fresh && (newPos.distanceToSqr(pos) > 1.0E-4 || newPose != pose || Math.abs(Mth.wrapDegrees(p.yaw() - yaw)) > 0.5F)) {
+            sinceCut = 0;
+            gaze.cut();
+        }
+        mode = Phantom.Mode.values()[Mth.clamp(p.mode(), 0, Phantom.Mode.values().length - 1)];
+        pose = newPose;
         bedDirection = p.bedDirection();
-        smear = p.smear();
-        focus = p.focus();
-        headSmear = p.headSmear();
-        targetFace = p.face();
+        flags = p.flags();
+        pos = newPos;
+        yaw = p.yaw();
+        scale = p.scale();
         targetHeadYaw = p.headYaw();
         targetHeadPitch = p.headPitch();
-        targetOpacity = p.opacity();
-        fadeSpeed = p.fadeSpeed();
-        targetYaw = p.yaw();
-        if (fresh) {
-            fresh = false;
-            pos = prevPos = targetPos = newPos;
-            yaw = prevYaw = targetYaw;
+        targetJaw = p.jaw();
+        if (fresh || (flags & Phantom.FLAG_SCRIPTED_HEAD) == 0) {
             headYaw = prevHeadYaw = targetHeadYaw;
             headPitch = prevHeadPitch = targetHeadPitch;
-            if (fadeSpeed >= 1.0F) {
-                opacity = prevOpacity = targetOpacity;
-            }
-        } else {
-            // A time-lapse jump (the Stopped's "getting up") is a teleport, not a walk.
-            if (modeChanged || newPos.distanceToSqr(targetPos) > 9.0) {
-                pos = prevPos = newPos;
-                yaw = prevYaw = targetYaw;
-            }
-            targetPos = newPos;
+            jaw = prevJaw = targetJaw;
         }
+        fresh = false;
     }
 
     void dissolve() {
         dissolving = true;
-        targetOpacity = 0.0F;
-        fadeSpeed = 0.25F;
     }
 
+    public boolean scriptedHead() {
+        return (flags & Phantom.FLAG_SCRIPTED_HEAD) != 0;
+    }
+
+    /** False once it should be dropped. */
     boolean tick() {
         age++;
-        prevPos = pos;
-        prevYaw = yaw;
-        prevOpacity = opacity;
+        sinceCut++;
         prevHeadYaw = headYaw;
         prevHeadPitch = headPitch;
-        prevWalkPos = walkPos;
-        prevFace = face;
-        face += (targetFace - face) * 0.15F;
-
-        Vec3 before = pos;
-        pos = pos.add(targetPos.subtract(pos).scale(0.5));
-        yaw += Mth.wrapDegrees(targetYaw - yaw) * 0.5F;
-        opacity += (targetOpacity - opacity) * fadeSpeed;
-        if (Math.abs(targetOpacity - opacity) < 0.003F) {
-            opacity = targetOpacity;
+        prevJaw = jaw;
+        headYaw += Mth.wrapDegrees(targetHeadYaw - headYaw) * 0.45F;
+        headPitch += (targetHeadPitch - headPitch) * 0.45F;
+        jaw += (targetJaw - jaw) * 0.5F;
+        if (dissolving) {
+            dissolveAge++;
+            return dissolveAge < 7;
         }
-        headYaw += (targetHeadYaw - headYaw) * 0.35F;
-        headPitch += (targetHeadPitch - headPitch) * 0.35F;
-
-        Vec3 delta = pos.subtract(before);
-        motion = motion.scale(0.8).add(delta.scale(0.2));
-        double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-        walkSpeed += ((float) Math.min(horizontal * 4.0, 1.0) - walkSpeed) * 0.4F;
-        walkPos += walkSpeed;
-        return !(dissolving && opacity <= 0.004F);
+        return true;
     }
 
-    public Vec3 lerpPos(float partial) {
-        return new Vec3(Mth.lerp(partial, prevPos.x, pos.x), Mth.lerp(partial, prevPos.y, pos.y), Mth.lerp(partial, prevPos.z, pos.z));
+    public float lerpHeadYaw(float partial) {
+        return prevHeadYaw + Mth.wrapDegrees(headYaw - prevHeadYaw) * partial;
     }
 
-    public float lerpYaw(float partial) {
-        return prevYaw + Mth.wrapDegrees(yaw - prevYaw) * partial;
+    public float lerpHeadPitch(float partial) {
+        return Mth.lerp(partial, prevHeadPitch, headPitch);
     }
 
-    public float lerpOpacity(float partial) {
-        return Mth.lerp(partial, prevOpacity, opacity);
+    public float lerpJaw(float partial) {
+        return Mth.lerp(partial, prevJaw, jaw);
+    }
+
+    /** Height of the top of its head above its feet, in blocks. */
+    public float height() {
+        return pose.height * scale;
     }
 }

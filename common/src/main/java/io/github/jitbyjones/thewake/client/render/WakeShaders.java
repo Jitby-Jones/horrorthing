@@ -8,13 +8,10 @@ import net.minecraft.Util;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 
-/** Holder for the two core shaders, registered by each loader's shader event. */
+/** Holder for the core shader (the finale's ground), registered by each loader's shader event. */
 public final class WakeShaders {
-    public static final ResourceLocation NIGHT = TheWake.id("rendertype_wake_night");
     public static final ResourceLocation RIBBON = TheWake.id("rendertype_wake_ribbon");
 
-    @Nullable
-    public static ShaderInstance night;
     @Nullable
     public static ShaderInstance ribbon;
 
@@ -26,9 +23,9 @@ public final class WakeShaders {
 
     private WakeShaders() {}
 
-    /** Use the night-sky shaders, or fall back to plain textures (shader packs, or turned off in config). */
+    /** Use the shader, or fall back to a plain texture (shader packs, or turned off in config). */
     public static boolean usable() {
-        return night != null && ribbon != null && WakeConfig.get().nightSkyShader && !shaderPackActive();
+        return ribbon != null && WakeConfig.get().nightSkyShader && !shaderPackActive();
     }
 
     /** Iris/Oculus replace the pipeline; custom core shaders may render black there. Checked once a second. */
@@ -60,12 +57,9 @@ public final class WakeShaders {
         return active;
     }
 
-    /** Real seconds, so the stars keep moving even where game time does not. */
+    /** Real seconds, so the static keeps moving even where game time does not. */
     public static void applyTime() {
         float seconds = (Util.getMillis() % 3_600_000L) / 1000.0F;
-        if (night != null) {
-            night.safeGetUniform("WakeTime").set(seconds);
-        }
         if (ribbon != null) {
             ribbon.safeGetUniform("WakeTime").set(seconds);
         }

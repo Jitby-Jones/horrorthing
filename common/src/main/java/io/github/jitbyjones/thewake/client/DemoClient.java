@@ -7,25 +7,35 @@ import java.util.Set;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.server.MinecraftServer;
 
 /**
- * Development only: the screenshot half of {@link DemoScript}. Keyed to the integrated server's
- * tick count (same JVM in singleplayer), so the two halves cannot drift apart.
+ * Development only: the client half of {@link DemoScript}: opens the inventory, pauses, and takes
+ * the screenshots. Keyed to the integrated server's tick count (same JVM in singleplayer), so the
+ * two halves cannot drift apart.
  */
 public final class DemoClient {
     private static final Object[][] SHOTS = {
-            {110, "01_sighting_day"},
-            {178, "02_waking_residue"},
-            {300, "03_bedside_before_turn"},
-            {345, "04_head_turning"},
-            {378, "05_head_turned"},
-            {440, "06_sighting_night"},
-            {600, "08_stopped_in_bed"},
-            {745, "09_stopped_walking"},
-            {765, "10_stopped_on_its_path"},
-            {1085, "11_escape_lying_down"},
-            {1160, "12_escaped_morning"},
+            {92, "01_giant_on_horizon"},
+            {126, "02_corner_of_eye"},
+            {152, "03_looked_at"},
+            {214, "04_turned_to_you"},
+            {256, "05_foot_of_bed"},
+            {300, "06_bedside"},
+            {358, "07_head_turning"},
+            {400, "08_head_turned"},
+            {540, "09_inventory_hunt_a"},
+            {610, "10_inventory_hunt_b"},
+            {690, "10c_inventory_hunt_c"},
+            {706, "11_frozen_after_menu"},
+            {765, "13_attack_a"},
+            {769, "14_attack_b"},
+            {910, "15_stopped_in_bed"},
+            {1100, "16_stopped_walking"},
+            {1165, "17_stopped_close"},
+            {1395, "18_escape_lying_down"},
+            {1470, "19_escaped_morning"},
     };
     private static final Set<String> TAKEN = new HashSet<>();
     private static long pausedAt = -1L;
@@ -49,20 +59,36 @@ public final class DemoClient {
                 shot(mc, name);
             }
         }
-        // The pause menu, in real time (the server does not tick while paused).
-        if (!pauseDone && t >= 470) {
+        if (t >= 90 && TAKEN.add("log_phantoms")) {
+            for (ClientPhantom p : ClientPhantoms.all()) {
+                TheWake.LOG.info("[demo] client sees phantom {} at {} scale {} pose {} visible {} inView {} distance {}", p.id, p.pos, p.scale,
+                        p.pose, p.gaze.visible, p.gaze.inView, String.format("%.1f", p.gaze.distance));
+            }
+        }
+        if (t >= DemoScript.OPEN_INVENTORY && TAKEN.add("open_inventory")) {
+            mc.setScreen(new InventoryScreen(mc.player));
+        }
+        if (t >= DemoScript.CLOSE_INVENTORY && TAKEN.add("close_inventory")) {
+            mc.setScreen(null);
+        }
+        // The pause menu, in real time (the server's world does not tick while paused; it does).
+        if (!pauseDone && t >= DemoScript.PAUSE) {
             long now = Util.getMillis();
             if (pausedAt < 0) {
                 pausedAt = now;
                 mc.pauseGame(false);
-            } else if (now - pausedAt > 8000L && TAKEN.add("07_pause_menu")) {
-                shot(mc, "07_pause_menu");
-            } else if (now - pausedAt > 9000L) {
+            } else if (now - pausedAt > 7000L && TAKEN.add("12_pause_tape")) {
+                shot(mc, "12_pause_tape");
+            } else if (now - pausedAt > 8000L) {
                 mc.setScreen(null);
                 pauseDone = true;
             }
         }
-        if (t >= 1220 && TAKEN.add("done")) {
+        if (pauseDone && TAKEN.add("12b_play") ) {
+            // Next tick after resuming: the PLAY mark.
+            shot(mc, "12b_play");
+        }
+        if (t >= 1530 && TAKEN.add("done")) {
             TheWake.LOG.info("[demo] done");
             mc.stop();
         }

@@ -1,5 +1,6 @@
 package io.github.jitbyjones.thewake.haunt;
 
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.config.WakeConfig;
 import io.github.jitbyjones.thewake.net.FxPayload;
 import io.github.jitbyjones.thewake.net.WakeNetwork;
@@ -16,8 +17,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** Operator command support: run one beat now, out of order, to see or test it. */
 public final class Showcase {
-    public static final List<String> BEATS = List.of("sighting", "touch", "residue", "headturn", "ledger", "searched", "kindness",
-            "stolen", "blink", "hurt", "pause", "stopped");
+    public static final List<String> BEATS = List.of("sighting", "giant", "touch", "morning", "hunt", "attack", "headturn", "ledger",
+            "searched", "kindness", "stolen", "blink", "hurt", "stopped");
 
     private Showcase() {}
 
@@ -33,29 +34,56 @@ public final class Showcase {
         Direction facing = bed != null ? Spots.bedFacing(level, bed) : null;
         switch (beat) {
             case "sighting" -> {
-                return Exposures.sighting(player, state, 25.0F) != null ? "A sighting, in view." : "No visible spot found.";
+                Phantom p = Appearances.sighting(player, state);
+                if (p == null) {
+                    return "No spot found at the edge of your view.";
+                }
+                Hunter.adopt(player, p);
+                return "At the edge of your view. Do not look straight at it.";
+            }
+            case "giant" -> {
+                return Appearances.giant(player) != null ? "Far off. Look around." : "No horizon in range.";
             }
             case "touch" -> {
                 BlockPos spot = Spots.inView(player, 2.0, 3.0, 10.0F, 20);
                 if (spot == null) {
                     return "No spot in front of you.";
                 }
-                Exposures.still(player, state, spot, Spots.yawTowards(Vec3.atBottomCenterOf(spot), player.position()), Phantom.Stance.STAND);
+                Appearances.still(player, spot, Spots.yawTowards(Vec3.atBottomCenterOf(spot), player.position()), CreaturePose.STAND);
                 return "Walk into it.";
             }
-            case "residue" -> {
+            case "morning" -> {
                 if (bed == null || facing == null) {
                     return "Sleep in a bed first.";
                 }
-                Residue.night(player, state, level, bed, facing, 10000, true);
+                Mornings.after(player, state, level, bed, facing);
                 WakeNetwork.send(player, FxPayload.of(FxPayload.WAKE_TINT, 70));
-                return "Waking residue around your bed.";
+                return "Where it spent the night (by act).";
+            }
+            case "hunt" -> {
+                if (!state.stage().atLeast(Stage.SIGHTINGS)) {
+                    Haunt.force(player, state, Stage.ROUTINE.threshold);
+                }
+                return "Open your inventory, or pause, and wait. Watch the edges of the screen.";
+            }
+            case "attack" -> {
+                if (!state.stage().atLeast(Stage.HUNT) || state.stage().atLeast(Stage.HUSH)) {
+                    Haunt.force(player, state, Stage.HUNT.threshold);
+                }
+                state.setLastAttackDay(-1L);
+                BlockPos spot = Spots.behind(player, 2.0, 3.0, 20);
+                if (spot == null) {
+                    return "No room behind you.";
+                }
+                Phantom p = Appearances.still(player, spot, Spots.yawTowards(Vec3.atBottomCenterOf(spot), player.position()), CreaturePose.STAND);
+                Director.schedule(2, () -> Attack.begin(player, state, p));
+                return "Behind you.";
             }
             case "headturn" -> {
                 if (bed == null || facing == null) {
                     return "Sleep in a bed first.";
                 }
-                Residue.headTurn(player, state, level, bed, facing);
+                Mornings.headTurn(player, state, level, bed, facing);
                 return "Beside your bed.";
             }
             case "ledger", "searched" -> {
@@ -84,7 +112,7 @@ public final class Showcase {
                 return "Where it went.";
             }
             case "blink" -> {
-                state.forcePeak(Stage.THEFT);
+                state.forcePeak(Stage.HUNT);
                 state.addDebt();
                 state.cooldown("blink", 0L, 0L);
                 return "A kept night is owed. It will be collected in daylight soon.";
@@ -95,12 +123,6 @@ public final class Showcase {
                 Vec3 at = source != null ? Vec3.atCenterOf(source) : player.position().add(8, 0, 0);
                 Household.send(player, SoundEvents.PLAYER_HURT, SoundSource.PLAYERS, at, 0.55F, 1.0F);
                 return "From the next room.";
-            }
-            case "pause" -> {
-                state.forcePeak(Stage.ROUTINE);
-                state.clearFlag("pause_figure");
-                state.syncDirty = true;
-                return "Armed. Pause the game and wait.";
             }
             case "stopped" -> {
                 if (bed == null || facing == null || !level.isLoaded(bed)) {

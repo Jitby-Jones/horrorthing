@@ -1,6 +1,7 @@
 package io.github.jitbyjones.thewake.phantom;
 
 import io.github.jitbyjones.thewake.TheWake;
+import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.haunt.Haunt;
 import io.github.jitbyjones.thewake.haunt.HauntState;
 import io.github.jitbyjones.thewake.net.PhantomPayload;
@@ -38,8 +39,9 @@ public final class Phantoms {
         touchHandler = handler;
     }
 
-    public static Phantom create(ServerPlayer owner, Vec3 pos, float yaw, Phantom.Mode mode, Phantom.Stance stance) {
-        Phantom phantom = new Phantom(nextId++, pos, yaw, mode, stance);
+    public static Phantom create(ServerPlayer owner, Vec3 pos, float yaw, Phantom.Mode mode, CreaturePose pose) {
+        Phantom phantom = new Phantom(nextId++, pos, yaw, mode, pose);
+        phantom.dimension = owner.level().dimension();
         HauntState state = Haunt.state(owner);
         phantom.lapseGeneration = state.lapseCount();
         BY_OWNER.computeIfAbsent(owner.getUUID(), k -> new ArrayList<>()).add(phantom);
@@ -74,15 +76,16 @@ public final class Phantoms {
         }
     }
 
-    /** Fade out with the shutter. */
+    /** Gone in a burst of static, like a tape skipping past it. */
     public static void dissolve(ServerPlayer owner, Phantom phantom, boolean close) {
         if (phantom.removed || phantom.dissolveTicks >= 0) {
             return;
         }
-        phantom.dissolveTicks = close ? 6 : 16;
+        phantom.dissolveTicks = 6;
         WakeNetwork.send(owner, PhantomPayload.remove(phantom.id, true));
-        owner.serverLevel().playSound(null, phantom.pos.x, phantom.pos.y + 1.4, phantom.pos.z, WakeRegistry.SHUTTER.get(),
-                SoundSource.AMBIENT, close ? 0.8F : 0.4F, 0.9F + owner.getRandom().nextFloat() * 0.15F);
+        owner.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                net.minecraft.core.Holder.direct(WakeRegistry.STATIC.get()), SoundSource.AMBIENT, phantom.pos.x, phantom.pos.y + 1.4 * phantom.scale,
+                phantom.pos.z, close ? 0.7F : 0.35F, 0.9F + owner.getRandom().nextFloat() * 0.2F, owner.getRandom().nextLong()));
     }
 
     public static void removeIf(ServerPlayer owner, Predicate<Phantom> test) {
@@ -142,6 +145,10 @@ public final class Phantoms {
             }
             return;
         }
+        if (p.dimension != owner.level().dimension()) {
+            remove(owner, p);
+            return;
+        }
         if (p.lapseGeneration >= 0 && state.lapseCount() > p.lapseGeneration) {
             // It moved during the lapse. There is nothing left to see.
             remove(owner, p);
@@ -161,7 +168,7 @@ public final class Phantoms {
             dissolve(owner, p, false);
             return;
         }
-        if (p.touchRadius > 0.0 && p.mode == Phantom.Mode.EXPOSURE && p.pos.distanceToSqr(owner.position()) < p.touchRadius * p.touchRadius) {
+        if (p.touchRadius > 0.0 && p.mode == Phantom.Mode.STILL && p.pos.distanceToSqr(owner.position()) < p.touchRadius * p.touchRadius) {
             if (p.behavior != null) {
                 p.behavior.onTouched(p, owner);
             }
@@ -173,11 +180,24 @@ public final class Phantoms {
             }
             return;
         }
+        send(owner, p);
+    }
+
+    private static void send(ServerPlayer owner, Phantom p) {
         if (!p.added || p.dirty) {
             p.added = true;
             p.dirty = false;
             WakeNetwork.send(owner, new PhantomPayload(PhantomPayload.OP_SET, p.id, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.mode.ordinal(),
-                    p.stance.ordinal(), p.opacity, p.smear, p.focus, p.headYaw, p.headPitch, p.headSmear, p.bedDirection, p.fadeSpeed, p.face));
+                    p.pose.ordinal(), p.headYaw, p.headPitch, p.jaw, p.scale, p.bedDirection, p.flags));
+        }
+    }
+
+    /** Sends pending changes without ticking anything: for when the world itself is paused. */
+    public static void sync(ServerPlayer owner) {
+        for (Phantom p : of(owner)) {
+            if (!p.removed && p.dissolveTicks < 0) {
+                send(owner, p);
+            }
         }
     }
 }

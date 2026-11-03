@@ -470,3 +470,231 @@ that stages every beat and takes screenshots. What the screenshots showed, and w
 | On servers, inside your own Stopped, other players kept moving (vanilla never freezes players). | A client-only freeze for every player but you. |
 | A black frame flashed at client start. | Overlay guard. |
 | Payloads were required, so clients with the mod could not join servers without it. | Payloads are optional on NeoForge; Fabric already allowed it. Nothing haunts anyone the other side cannot hear. |
+
+---
+
+## Pass 8: Redesign, "the thing in the corner"
+
+### Why
+
+Playtest verdict from the owner: **not scary enough.** The night-sky silhouette is a clever
+idea and a blank object: a flat shape with stars in it reads as *strange*, not as *something
+that wants you*. Kept: the core rule (it only moves while you are not watching the world: menus,
+sleep), the lapse framework, the acts, the finale structure. Rebuilt: the creature, how it moves,
+what happens when it reaches you, and the whole presentation, now aimed at Trevor Henderson /
+Doctor Nowhere / analogue horror.
+
+### Research: what to take (and what not to)
+
+**Trevor Henderson** (cryptid "photographs"): monsters composited into ordinary photos so they
+look *photographed*, not drawn; **faces are the focus**: grinning, staring, gnashing; pale,
+decrepit, emaciated anatomy with black eye sockets; elongated limbs and necks; enormous scale
+disparity (giants behind treelines, faces peering out of bridges); "false faces"; peering through
+doors, sinking back into walls; quiet, repetitive behaviour (staring, following, mumbling) that
+implies intelligence; everyday settings.
+
+**Doctor Nowhere** (Silas Orion; *The Boiled One Phenomenon*, *The Organator Enterprise*): a tall
+humanoid with raw, melted-looking skin and a horrific open face, met through a hijacked broadcast
+and a "warm yet deeply disconcerting" voice; *the Locust*: tall, lanky, black, an uncanny face with
+soulless eyes and a long jaw. Early work openly shares Henderson's language; the horror comes from
+institutional framing (broadcasts, tapes, corporate video) and wrong anatomy shown plainly.
+
+**Analogue horror**: VHS grain, tracking errors, rolling noise bands, colour bleed, flicker,
+static, warped audio; slow pacing; partial reveals; distorted familiar faces.
+
+**Not taken:** any specific character (no speaker heads, no cartoon cat, no long horse, no red
+boiled giant, no locust). The rule from the design skill still applies: it must *look* wrong for
+Minecraft and *belong* to Minecraft.
+
+### The creature
+
+Built as a real high-detail 3D mesh (sculpted procedurally in Blender, see below), rendered
+inside a blocky world: the fidelity intrusion is the first scare.
+
+- **Too tall and too thin.** 3.4 blocks upright. Emaciated, ribs and spine showing, joints
+  swollen. Arms hang to its knees; fingers are almost half a block long and slightly curled.
+- **It has to fold to fit in your house.** Under a normal ceiling it stoops with its head pressed
+  flat against the ceiling and its neck bent; it crouches with its knees by its ears; it crawls
+  through doorways.
+- **Skin that looks photographed.** Grey-yellow, mottled with bruise-violet, veins showing,
+  dirt at the fingertips: a texture with photographic grain, not pixel art.
+- **The face.** Long and pale, slightly too big, sitting a little forward of the skull like a
+  mask. Deep black sockets with small wet glints. No nose, two slits. A lipless grin far too wide,
+  packed with small flat human teeth. The jaw is hinged and opens further than a jaw should.
+
+### How it moves: never while you watch
+
+The world is a tape. When you look away from it, the tape keeps playing.
+
+- **It only moves while you are in a menu** (inventory, chests, crafting, the pause menu, chat),
+  **asleep**, **AFK**, or during a **real hitch**. The moment you are back in the world, it stops,
+  frozen mid-motion wherever it got to, in whatever pose it was in.
+- **You can watch it come, sideways.** Most menus do not cover the world: behind your inventory
+  the world is still there, dimmed. At the edges of the screen, in stop-motion, something crawls
+  closer while you sort your chest. Close the chest: silence; it is standing behind the door.
+- **It freezes in the corner of your eye.** When a lapse ends, it is placed at the edge of your
+  view or behind you, never dead centre: peeking round a wall edge with its fingers curled round
+  it, standing in a dark corner with its head on the ceiling, crouched behind the furnace.
+- **Peripheral vision.** While it is near the centre of your view it is perfectly still. In the
+  corner of your eye, it is not: its head twitches and tilts, its fingers flex. Snap your view to
+  it and it is still. Look away and back, and its head has turned to face you.
+- **You can hear it.** While you are in a menu: slow steps that are not yours, joints cracking,
+  wet breathing through a cheap microphone, a faint warble like a tape motor. Out of the menu:
+  nothing.
+- **The paperdoll.** Your inventory screen shows your character in a little window. When it is
+  behind you, it is behind your character too: its face rising over your doll's shoulder, larger
+  the closer it is. It is the real one.
+
+### When it reaches you
+
+From Act IV, if it reaches you during a lapse, the menu is torn away, your view is wrenched round
+to it, and its face fills the screen with its jaw opening; the picture tears like a chewed tape;
+a short distorted scream; real damage (default six hearts, armour does not help).
+*"<player> looked away."* Then it is gone, somewhere far off, and will not do it again for a day.
+In hardcore it never kills.
+
+### Sleep
+
+- Lying down is a lapse. If it is within reach as the screen darkens, you see it come: crawling
+  up toward the bed while the picture fades. Click *Leave Bed* and it stops.
+- A skipped night is a long lapse: by morning it is in the doorway (Act II), at the foot of the
+  bed (Act III), or bent over you (Act IV), and sometimes it does not wait for you to get up.
+
+### Before it hunts: scale
+
+Act II is Henderson's giants. Before it ever comes close, after a lapse you find it far off: on
+a ridge, behind a treeline, its head and shoulders above the trees, four times its size, facing
+your house. Next time, somewhere else on the horizon. It can be any size it likes while nobody
+is looking.
+
+### The tape
+
+- A VHS layer (grain, scanlines, colour bleed, a rolling tracking band, slight jitter) that
+  thickens when it is on screen and close, burst-tears when it attacks, and is constant in the
+  finale.
+- Once it is awake, the pause menu is a paused tape: a small "PAUSE" in the corner, tracking noise
+  across the frozen frame behind the menu, and in that frame, it is still moving toward you.
+  Resume and "PLAY" flickers in the corner.
+- Its sounds carry subtitles for players who use them, with direction arrows: a tool and a scare.
+
+### What stays, what changes
+
+| Beat | Fate |
+|---|---|
+| Act I chores (a bribe for routine) | Kept. In hindsight you know who did them. |
+| Bed refusal, the ledger, clocks stopping near it, pets staring, your own hurt sound | Kept. |
+| Stolen mornings, daylight blinks for kept nights | Kept: more lost time for it to use. |
+| Sightings and waking afterimages | Replaced by the creature itself, frozen wherever its lapses left it. |
+| The head turn | Kept, with its own face, lit, close. The "becoming you" arc is dropped. |
+| The pause figure (once) | Replaced by the hunt: every long pause, it is behind the menu coming closer. |
+| The finale | Kept: the world freezes like a paused tape, and now it moves while you watch, in stop-motion. Your worn routes show as burned-in static on the ground. Escape and both endings unchanged. |
+
+### Fairness
+
+- Alt-tabbing does not count: an unfocused pause waits for you.
+- Short menus barely move it; it needs time. A quick inventory check is safe early, and stops
+  being safe in Act IV.
+- Only one attack per in-game day; damage and hardcore behaviour are configurable.
+- It never breaks blocks or takes items.
+
+### The model pipeline
+
+The creature is generated by `tools/creature/build_creature.py`, run in headless Blender (the
+`bpy` module, no GUI or MCP needed): a skin-modifier skeleton for the body, a sculpted head with
+sockets, slits and a hinged jaw full of teeth, an armature, a pose library, and a baked
+photographic texture. Each pose is exported as an OBJ with `body`, `head` and `jaw` groups plus a
+small JSON of pivots. The mod loads them at runtime, so a resource pack (or the owner, from
+Blender, Meshy, Tripo, Hunyuan3D…) can replace the model without touching code.
+
+## Pass 9: As built (and what changed on the way)
+
+Notes from implementing Pass 8, where reality pushed back.
+
+### The creature in the game
+
+- **Not an entity.** It is still a per-player "appearance" that only its owner's client knows
+  about (the old phantom system, re-skinned): no entity, nothing for other players to see, nothing
+  to hit, no spawn rules to collide with other mods.
+- **Drawn as a real mesh.** About 29k triangles across 13 poses, with the head and jaw rigid so
+  the client can turn the head and open the jaw on top of any pose. Each pose lives in a static
+  vertex buffer and is drawn with vanilla's entity shader and lightmap: it is exactly as dark as
+  the corner it stands in, and shader packs see an ordinary entity draw.
+- **Two wet pinpoints.** The eyes are black, but a tiny additive glint sits at the bottom of each
+  socket, so in a dark room you see two points of light at head height before anything else.
+- **Stop-motion.** Position and pose never interpolate on the client: every change is a cut.
+  Walking is two frames (`walk_a`/`walk_b`, `crawl_a`/`crawl_b`) alternating a block at a time.
+
+### How it moves (the hunter)
+
+- A breadth-first field from the player's feet (radius 36) gives it real paths through houses.
+  It walks through doors (it opens and closes them while you are not looking), crawls where there
+  are only two blocks of room, stoops or presses its head against three-block ceilings.
+- Lapses are computed every tick from facts, not events: sleeping, idle, or a screen reported
+  open by the client with the window focused (`menuHunts` / `pauseEvents`). Singleplayer pauses
+  stop the integrated server's world, so a mixin on `IntegratedServer.tickPaused` lets only the
+  creature take its steps.
+- Speed by act: 24 / 16 / 11 ticks per block (Act III / routine / Act IV), two blocks per step
+  while it is more than 12 away. It arrives 5.5 / 3 / 1.5 seconds into a lapse, 16-26 blocks
+  out, at the edge of your view (60%) or behind you.
+- Closest approach: 9 blocks in Act III, 2 later, 0 in Act IV (where reaching you is the attack).
+- When the lapse ends it is frozen where it got to. If that is the middle of your view it is moved
+  aside along its paths (or is simply gone). Within 16 blocks it looks for a wall edge to stand
+  behind and lean out from; otherwise it settles into a standing, crouching or reaching pose.
+
+### Seeing it
+
+- Looked at directly (within about 22 degrees of centre) it is perfectly still. At the edge of
+  your view the head jerks, tilts and the jaw works. Out of sight for half a second, its head is
+  turned to face you, at an angle no neck holds, and that is how you find it when you look back.
+  All client-side, per frame, nothing sent over the network.
+- Menus no longer hide it. Container screens dim the world and the pause menu blurs it; the
+  creature is drawn again over that, undimmed and sharp, but against the world's saved depth, so
+  walls still hide it. You watch it come at the edges of the screen while you sort a chest.
+- The paperdoll: if it is within seven blocks behind you, its face rises over your doll's
+  shoulder in the inventory window.
+
+### The tape
+
+- One post effect, `thewake_tape`: chroma bleed, horizontal softness, scanlines, grain, a
+  tracking band rolling down the picture, head-switching noise at the bottom, and a tear (sheared
+  line blocks, vertical skips, snow) for the attack. Its strength follows reasons: the creature on
+  screen and close, the creature moving, the pause menu, the morning after, the Stopped.
+- Behind the pause menu: a paused tape, `PAUSE` in the corner; `PLAY ▶` when you resume.
+- The Stopped's routes are burned-in static now, not night sky.
+
+### Sound
+
+All synthesized (`tools/generate_assets.py`): bare footsteps (3), joint cracks (3, one of them a
+neck), wet breathing through a cheap microphone (2), the tape motor (a loop, only while it
+moves), static, a VCR key, and the scream: short, pitch lurching up and collapsing, saturated and
+bit-crushed. The scream is the only loud sound in the mod and has its own volume setting. Every
+sound has a subtitle; positional ones get vanilla's direction arrows for free.
+
+### Acts, renamed
+
+`EXPOSURE` became `WATCHING` (Act II: the giants), `THEFT` became `HUNT` (Act IV: it attacks),
+`LIKENESS` became `HUSH` (Act V: the silence and the head turn). Mornings by act: a giant on the
+horizon, then the doorway (the door left open), then the foot of the bed, then bent over you.
+
+### Fairness, revisited
+
+- Walking into it still costs you an hour (the blackout), but now it also dispels it: a way out
+  of a creature planted next to your bed, at a price.
+- The bed refuses you ("monsters nearby") only while it is within five blocks.
+- The attack is once per in-game day, armour does not help, and in hardcore it leaves you at half
+  a heart unless `attackHardcoreKills` is on. `attacks`, `attackDamage`, `screamVolume` and
+  `tapeEffect` are all in the config.
+
+### The model pipeline, as built
+
+`tools/creature/build_creature.py` runs in headless Blender (`pip install bpy`), no GUI or MCP
+server needed. Skin-modifier skeleton with extra "shape" joints for knobbed, wasted limbs;
+anatomy sculpted in numpy (ribs sloping to a sternum, costal margin over a sucked-in belly,
+vertebrae, shoulder blades, collarbones, hip bones, neck tendons); a head sculpted from a dense
+sphere (sockets, slits, a recessed ear-to-ear grin band, a chin), split into skull and hinged
+jaw, with sixty boxy teeth and two eyes. Position, normal, AO and part maps are baked with
+Cycles and painted in numpy (mottling, bruises, veins, grime on hands and feet, nails, gums,
+yellowed teeth). Decimated, rigged with bone-heat weights, posed with dual-quaternion skinning,
+and exported as one gzipped binary (`models/creature/creature.bin.gz`; `--obj` also writes OBJs
+for editing elsewhere). A replacement mesh (sculpted by hand, or generated with Meshy, Tripo or
+Hunyuan3D) can be dropped into the same pipeline as long as it is rigged to the same skeleton.

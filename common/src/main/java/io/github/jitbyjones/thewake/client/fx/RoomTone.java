@@ -11,7 +11,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 
-/** Near an image the air sounds like a different room: a bedroom at 3 a.m. Very quiet. */
+/** Near it the air sounds like a different room: a bedroom at 3 a.m. Very quiet. */
 public final class RoomTone {
     private static final double RANGE = 14.0;
     @Nullable
@@ -69,7 +69,7 @@ public final class RoomTone {
             this.z = at.z;
             double d = near.pos.distanceTo(mc.player.position());
             float closeness = (float) Math.max(0.0, 1.0 - d / RANGE);
-            this.volume = Math.max(0.01F, closeness * near.opacity * 0.6F * WakeConfig.get().soundVolume);
+            this.volume = Math.max(0.01F, closeness * 0.6F * WakeConfig.get().soundVolume);
         }
     }
 }

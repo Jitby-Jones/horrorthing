@@ -31,6 +31,7 @@ public final class WakeConfig {
     public int quietNights = 1;
 
     // ---- lapse sources ------------------------------------------------------------------
+    public boolean menuHunts = true;
     public boolean pauseEvents = true;
     public boolean afkEvents = true;
     public int afkSeconds = 150;
@@ -43,9 +44,16 @@ public final class WakeConfig {
     public boolean finale = true;
     public boolean finaleOnServers = false;
 
+    // ---- the creature -------------------------------------------------------------------
+    public boolean attacks = true;
+    public float attackDamage = 12.0f;
+    public boolean attackHardcoreKills = false;
+
     // ---- presentation -------------------------------------------------------------------
     public boolean nightSkyShader = true;
     public float soundVolume = 1.0f;
+    public float screamVolume = 0.8f;
+    public boolean tapeEffect = true;
 
     // ---- scope --------------------------------------------------------------------------
     public List<String> dimensions = new ArrayList<>(List.of("minecraft:overworld"));
@@ -55,7 +63,8 @@ public final class WakeConfig {
     static {
         HELP.put("pace", "Multiplier for how fast the Wake learns you. 2.0 = twice as fast, 0.5 = half.");
         HELP.put("quietNights", "Nights you can sleep through before anything at all happens.");
-        HELP.put("pauseEvents", "Singleplayer: pauses over two minutes count as lost time, and once, something stands behind the menu.");
+        HELP.put("menuHunts", "It moves while you are in a menu: inventory, chests, crafting, chat. Off: only while you sleep, idle, or pause.");
+        HELP.put("pauseEvents", "The pause menu counts too (while the game window has focus: alt-tabbing never does).");
         HELP.put("afkEvents", "Standing still without input counts as lost time.");
         HELP.put("afkSeconds", "Seconds without input before a player counts as absent.");
         HELP.put("hitchEvents", "Real frame stalls over a second count as lost time (capped per day). Nothing is faked.");
@@ -64,8 +73,13 @@ public final class WakeConfig {
         HELP.put("worldEdits", "Act I chores near your bed: furnace output moved to a chest, crops ripened, doors closed, a torch placed. Nothing is ever removed.");
         HELP.put("finale", "Enable the Stopped, the finale.");
         HELP.put("finaleOnServers", "Allow the finale on multiplayer servers (per-player client-side freeze). Off: server players plateau before it.");
-        HELP.put("nightSkyShader", "Client: render the Wake with its night-sky shader. Turn off if a shader pack breaks it.");
+        HELP.put("attacks", "From Act IV it attacks if it reaches you while you are not watching. At most once per in-game day.");
+        HELP.put("attackDamage", "Damage of an attack, in half-hearts (12 = six hearts). Armour does not help.");
+        HELP.put("attackHardcoreKills", "Hardcore: attacks leave you at half a heart instead of killing you, unless this is on.");
+        HELP.put("nightSkyShader", "Client: the finale's custom ground shader. Turn off if a shader pack breaks it.");
         HELP.put("soundVolume", "Client: volume multiplier for this mod's own sounds (0.0 - 1.0).");
+        HELP.put("screamVolume", "Client: volume of the one loud sound in the mod, when it attacks (0.0 - 1.0).");
+        HELP.put("tapeEffect", "Client: the VHS look (grain, tracking noise, a tear when it attacks). Off keeps the picture clean.");
         HELP.put("dimensions", "Dimensions the Wake can reach.");
     }
 
@@ -97,6 +111,8 @@ public final class WakeConfig {
         quietNights = Math.max(0, Math.min(quietNights, 100));
         afkSeconds = Math.max(30, Math.min(afkSeconds, 3600));
         soundVolume = Math.max(0.0f, Math.min(soundVolume, 1.0f));
+        screamVolume = Math.max(0.0f, Math.min(screamVolume, 1.0f));
+        if (!(attackDamage >= 0.0f) || attackDamage > 1000.0f) attackDamage = 12.0f;
         if (dimensions == null || dimensions.isEmpty()) {
             dimensions = new ArrayList<>(List.of("minecraft:overworld"));
         }

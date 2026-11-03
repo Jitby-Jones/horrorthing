@@ -4,8 +4,10 @@ import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.WakeCommands;
 import io.github.jitbyjones.thewake.WakeHooks;
 import io.github.jitbyjones.thewake.net.FxPayload;
+import io.github.jitbyjones.thewake.net.AttackPayload;
 import io.github.jitbyjones.thewake.net.HitchPayload;
 import io.github.jitbyjones.thewake.net.PausePayload;
+import io.github.jitbyjones.thewake.net.ScreenPayload;
 import io.github.jitbyjones.thewake.net.PhantomPayload;
 import io.github.jitbyjones.thewake.net.StoppedPayload;
 import io.github.jitbyjones.thewake.net.SyncPayload;
@@ -95,6 +97,12 @@ public final class TheWakeNeoForge {
         registrar.playToClient(FxPayload.TYPE, FxPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
         registrar.playToClient(StoppedPayload.TYPE, StoppedPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
         registrar.playToClient(PhantomPayload.TYPE, PhantomPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
+        registrar.playToClient(AttackPayload.TYPE, AttackPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
+        registrar.playToServer(ScreenPayload.TYPE, ScreenPayload.CODEC, (payload, ctx) -> {
+            if (ctx.player() instanceof ServerPlayer player) {
+                WakeNetwork.handleServer(player, payload);
+            }
+        });
         registrar.playToServer(PausePayload.TYPE, PausePayload.CODEC, (payload, ctx) -> {
             if (ctx.player() instanceof ServerPlayer player) {
                 WakeNetwork.handleServer(player, payload);

@@ -1,6 +1,7 @@
 #version 150
 
-// Ribbons of night lying on the ground in the Stopped: soft-edged patches that merge where you walked.
+// The Stopped: everywhere you ever walked, burned into the picture as static, the way a paused tape
+// wears through where it has been played too often. Soft-edged patches that merge along your routes.
 
 uniform vec4 ColorModulator;
 uniform float WakeTime;
@@ -17,67 +18,19 @@ float hash(vec3 p) {
     return fract((p.x + p.y) * p.z);
 }
 
-// Direction -> a cube face and a point on it. Stars live on the faces, so every star sits on the sky.
-vec2 cubeFace(vec3 d, out float face) {
-    vec3 a = abs(d);
-    if (a.x >= a.y && a.x >= a.z) {
-        face = d.x > 0.0 ? 0.0 : 1.0;
-        return d.yz / a.x;
-    }
-    if (a.y >= a.z) {
-        face = d.y > 0.0 ? 2.0 : 3.0;
-        return d.xz / a.y;
-    }
-    face = d.z > 0.0 ? 4.0 : 5.0;
-    return d.xy / a.z;
-}
-
-// One layer of stars fixed to world directions: a window onto a night sky behind the world.
-// Star size never drops below about a pixel, so the field reads at any resolution.
-float starLayer(vec3 dir, float scale, float density, float size, float speed) {
-    float face;
-    vec2 uv = cubeFace(dir, face) * scale;
-    float pixel = clamp(length(fwidth(uv)), 0.0001, 0.45);
-    float radius = max(size, pixel * 1.35);
-    float dim = clamp(size / radius * 1.6, 0.4, 1.0);
-    vec2 cell = floor(uv);
-    float total = 0.0;
-    for (int ox = -1; ox <= 1; ox++) {
-        for (int oy = -1; oy <= 1; oy++) {
-            vec2 c = cell + vec2(float(ox), float(oy));
-            vec3 key = vec3(c, face * 131.0 + scale);
-            float h = hash(key);
-            if (h > density) {
-                continue;
-            }
-            vec2 center = c + 0.5 + (vec2(hash(key + 13.1), hash(key + 27.7)) - 0.5) * 0.8;
-            float g = smoothstep(radius, 0.0, length(uv - center));
-            float twinkle = 0.65 + 0.35 * sin(WakeTime * speed * (0.6 + h * 4.0) + h * 91.0);
-            total += g * g * twinkle * mix(0.55, 1.0, hash(key + 5.5)) * dim;
-        }
-    }
-    return total;
-}
-
-vec3 nightSky(vec3 dir, float lift) {
-    float up = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 sky = mix(vec3(0.014, 0.019, 0.045), vec3(0.040, 0.058, 0.130), up) + vec3(lift * 0.55, lift * 0.75, lift);
-    float s = starLayer(dir, 34.0, 0.16, 0.085, 1.1)
-            + starLayer(dir, 80.0, 0.12, 0.06, 1.7) * 0.8
-            + starLayer(dir, 170.0, 0.09, 0.05, 2.3) * 0.6;
-    return sky + vec3(0.92, 0.95, 1.0) * min(s, 1.4);
-}
-
 void main() {
     vec2 c = texCoord0 - 0.5;
     float edge = smoothstep(1.0, 0.2, length(c) * 2.0);
-    float shimmer = 0.86 + 0.14 * sin(WakeTime * 0.9 + (viewPos.x + viewPos.z) * 0.35);
-    float alpha = vertexColor.a * ColorModulator.a * edge * shimmer;
+    float alpha = vertexColor.a * ColorModulator.a * edge;
     if (alpha <= 0.003) {
         discard;
     }
-    vec3 dir = normalize(viewPos);
-    // A night sky lying on the ground has to read against dark ground: lift it, brighten its stars.
-    vec3 color = nightSky(dir, 0.0) * 1.35 + vec3(0.050, 0.058, 0.082);
-    fragColor = vec4(color, alpha);
+    // Snow is a property of the screen, not of the ground: it does not move with the world.
+    float frame = floor(WakeTime * 24.0);
+    float snow = hash(vec3(floor(gl_FragCoord.xy / 2.0), frame));
+    float line = hash(vec3(floor(gl_FragCoord.y / 3.0), frame, 7.0));
+    float v = mix(snow, line, 0.3) * 0.85 + 0.08;
+    // A slow roll of brighter lines through it.
+    v += smoothstep(0.92, 1.0, sin(gl_FragCoord.y * 0.05 + WakeTime * 3.0)) * 0.25;
+    fragColor = vec4(vec3(v) * vec3(0.93, 0.96, 1.0), clamp(alpha * 0.8, 0.0, 1.0));
 }

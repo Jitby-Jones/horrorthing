@@ -4,8 +4,10 @@ import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.WakeCommands;
 import io.github.jitbyjones.thewake.WakeHooks;
 import io.github.jitbyjones.thewake.net.FxPayload;
+import io.github.jitbyjones.thewake.net.AttackPayload;
 import io.github.jitbyjones.thewake.net.HitchPayload;
 import io.github.jitbyjones.thewake.net.PausePayload;
+import io.github.jitbyjones.thewake.net.ScreenPayload;
 import io.github.jitbyjones.thewake.net.PhantomPayload;
 import io.github.jitbyjones.thewake.net.StoppedPayload;
 import io.github.jitbyjones.thewake.net.SyncPayload;
@@ -34,10 +36,13 @@ public final class TheWakeFabric implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(FxPayload.TYPE, FxPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(StoppedPayload.TYPE, StoppedPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PhantomPayload.TYPE, PhantomPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(AttackPayload.TYPE, AttackPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ScreenPayload.TYPE, ScreenPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PausePayload.TYPE, PausePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(HitchPayload.TYPE, HitchPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(PausePayload.TYPE, (payload, ctx) -> WakeNetwork.handleServer(ctx.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(HitchPayload.TYPE, (payload, ctx) -> WakeNetwork.handleServer(ctx.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(ScreenPayload.TYPE, (payload, ctx) -> WakeNetwork.handleServer(ctx.player(), payload));
 
         ServerTickEvents.END_SERVER_TICK.register(WakeHooks::onServerTick);
         ServerLifecycleEvents.SERVER_STOPPING.register(WakeHooks::onServerStopping);

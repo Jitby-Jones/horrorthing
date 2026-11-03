@@ -93,14 +93,14 @@ final class NightShift {
             int nightTicks, float familiarity, boolean newPlace) {
         if (Beats.headTurnDue(state, level)) {
             state.setFlag("head_turn");
-            return () -> Residue.headTurn(player, state, level, head, facing);
+            return () -> Mornings.headTurn(player, state, level, head, facing);
         }
         if (Beats.hush(state, level)) {
             return null;
         }
         Stage peak = state.peakStage();
         // It searched for you all night and could not find you. The ledger says so.
-        if (newPlace && peak.atLeast(Stage.EXPOSURE) && !state.hasFlag("ledger_searched") && state.ledgerCount() < 5) {
+        if (newPlace && peak.atLeast(Stage.WATCHING) && !state.hasFlag("ledger_searched") && state.ledgerCount() < 5) {
             state.setFlag("ledger_searched");
             return () -> Ledger.searched(player, state, level, head, nightTicks);
         }
@@ -113,7 +113,7 @@ final class NightShift {
             return null;
         }
         WakeConfig config = WakeConfig.get();
-        if (Beats.window(state, Stage.THEFT, Stage.LIKENESS) && config.stolenMornings && !level.getLevelData().isHardcore()
+        if (Beats.window(state, Stage.HUNT, Stage.HUSH) && config.stolenMornings && !level.getLevelData().isHardcore()
                 && state.ready("stolen_morning", level.getGameTime()) && player.getRandom().nextFloat() < 0.4F) {
             BlockPos where = Theft.stolenMorningSpot(player, state, level, head);
             if (where != null) {
@@ -123,9 +123,9 @@ final class NightShift {
                 return () -> Theft.wakeAt(player, level, head, where);
             }
         }
-        if (Beats.window(state, Stage.EXPOSURE, Stage.LIKENESS)) {
+        if (Beats.window(state, Stage.WATCHING, Stage.HUSH)) {
             return () -> {
-                Residue.night(player, state, level, head, facing, nightTicks, true);
+                Mornings.after(player, state, level, head, facing);
                 WakeNetwork.send(player, FxPayload.of(FxPayload.WAKE_TINT, 70));
             };
         }

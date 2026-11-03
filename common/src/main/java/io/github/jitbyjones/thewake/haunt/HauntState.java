@@ -30,7 +30,9 @@ public final class HauntState {
     private boolean ended;
     private boolean endingKept;
     private int caughtCount;
-    private long likenessDay = -1L;
+    private long hushDay = -1L;
+    private long lastAttackDay = -1L;
+    private long lastGiantDay = -1L;
 
     // pacing --------------------------------------------------------------------------------
     private long gainDay = -1L;
@@ -169,8 +171,13 @@ public final class HauntState {
 
     public int caughtCount() { return caughtCount; }
     public void incrementCaught() { caughtCount++; }
-    public long likenessDay() { return likenessDay; }
-    public void setLikenessDay(long day) { likenessDay = day; }
+    public long hushDay() { return hushDay; }
+    /** In-game day of its last attack: one a day at most. */
+    public long lastAttackDay() { return lastAttackDay; }
+    public void setLastAttackDay(long day) { lastAttackDay = day; }
+    public long lastGiantDay() { return lastGiantDay; }
+    public void setLastGiantDay(long day) { lastGiantDay = day; }
+    public void setHushDay(long day) { hushDay = day; }
 
     boolean takeHitch(long day, int max) {
         if (hitchDay != day) {
@@ -344,7 +351,7 @@ public final class HauntState {
         ended = false;
         endingKept = false;
         caughtCount = 0;
-        likenessDay = -1L;
+        hushDay = -1L;
         ledgerCount = 0;
         flags.clear();
         bed = null;
@@ -368,7 +375,9 @@ public final class HauntState {
         tag.putBoolean("Ended", ended);
         tag.putBoolean("EndingKept", endingKept);
         tag.putInt("Caught", caughtCount);
-        tag.putLong("LikenessDay", likenessDay);
+        tag.putLong("LikenessDay", hushDay);
+        tag.putLong("LastAttackDay", lastAttackDay);
+        tag.putLong("LastGiantDay", lastGiantDay);
         tag.putLong("GainDay", gainDay);
         tag.putFloat("GainedToday", gainedToday);
         tag.putLong("LastLogout", lastLogoutMillis);
@@ -430,7 +439,9 @@ public final class HauntState {
         s.ended = tag.getBoolean("Ended");
         s.endingKept = tag.getBoolean("EndingKept");
         s.caughtCount = tag.getInt("Caught");
-        s.likenessDay = tag.contains("LikenessDay") ? tag.getLong("LikenessDay") : -1L;
+        s.hushDay = tag.contains("LikenessDay") ? tag.getLong("LikenessDay") : -1L;
+        s.lastAttackDay = tag.contains("LastAttackDay") ? tag.getLong("LastAttackDay") : -1L;
+        s.lastGiantDay = tag.contains("LastGiantDay") ? tag.getLong("LastGiantDay") : -1L;
         s.gainDay = tag.contains("GainDay") ? tag.getLong("GainDay") : -1L;
         s.gainedToday = tag.getFloat("GainedToday");
         s.lastLogoutMillis = tag.contains("LastLogout") ? tag.getLong("LastLogout") : -1L;

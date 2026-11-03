@@ -1,10 +1,13 @@
 package io.github.jitbyjones.thewake.client.render;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github.jitbyjones.thewake.client.ClientPhantom;
 import io.github.jitbyjones.thewake.client.ClientPhantoms;
-import io.github.jitbyjones.thewake.client.fx.PauseFigure;
+import io.github.jitbyjones.thewake.client.creature.CreatureRenderer;
 import io.github.jitbyjones.thewake.client.fx.StoppedClient;
 import it.unimi.dsi.fastutil.longs.Long2ByteMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -17,26 +20,37 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 /** Called once per frame from the level render, after entities. */
 public final class WorldRender {
+    /** The world's matrices from the last level render, for drawing it again over a menu. */
+    public static final Matrix4f VIEW = new Matrix4f();
+    public static final Matrix4f PROJECTION = new Matrix4f();
+    public static Vec3 cameraPos = Vec3.ZERO;
+    public static boolean captured;
+    /** The world's depth, kept while a menu is open, so walls still hide it behind the menu. */
+    @javax.annotation.Nullable
+    private static TextureTarget savedDepth;
+    private static boolean depthSaved;
+
     private WorldRender() {}
 
     public static void afterEntities(Camera camera, float partial) {
-        PauseFigure.capture(camera);
+        VIEW.set(RenderSystem.getModelViewMatrix());
+        PROJECTION.set(RenderSystem.getProjectionMatrix());
+        cameraPos = camera.getPosition();
+        captured = true;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
         }
         boolean ribbons = StoppedClient.active() && !StoppedClient.ribbons().isEmpty();
-        if (ClientPhantoms.isEmpty() && !ribbons) {
-            return;
-        }
         Vec3 cam = camera.getPosition();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        PoseStack poseStack = new PoseStack();
 
         if (ribbons) {
+            PoseStack poseStack = new PoseStack();
             RenderType type = WakeRenderTypes.ribbon();
             VertexConsumer consumer = buffers.getBuffer(type);
             Matrix4f matrix = poseStack.last().pose();
@@ -51,24 +65,81 @@ public final class WorldRender {
         }
 
         if (!ClientPhantoms.isEmpty()) {
-            RenderType type = WakeRenderTypes.figure(false);
-            RenderType faceType = null;
-            for (ClientPhantom phantom : ClientPhantoms.all()) {
-                if (phantom.pos.distanceToSqr(cam) < 192.0 * 192.0) {
-                    RenderType used = Silhouette.draw(poseStack, buffers, type, phantom, cam, partial);
-                    if (used != null) {
-                        faceType = used;
-                    }
-                }
-            }
-            buffers.endBatch(type);
-            if (faceType != null) {
-                buffers.endBatch(faceType);
-            }
+            buffers.endBatch();
+            drawCreatures(VIEW, PROJECTION, cam, camera.getLookVector(), partial, buffers);
         }
     }
 
-    /** A soft-edged patch of night lying on the block under a footprint. */
+    /** Right after the level is drawn: keep its depth if a menu will draw the creature again. */
+    public static void afterLevel() {
+        Minecraft mc = Minecraft.getInstance();
+        depthSaved = false;
+        if (mc.screen == null || ClientPhantoms.isEmpty()) {
+            return;
+        }
+        RenderTarget main = mc.getMainRenderTarget();
+        if (savedDepth == null || savedDepth.width != main.width || savedDepth.height != main.height) {
+            if (savedDepth != null) {
+                savedDepth.destroyBuffers();
+            }
+            savedDepth = new TextureTarget(main.width, main.height, true, Minecraft.ON_OSX);
+        }
+        savedDepth.copyDepthFrom(main);
+        main.bindWrite(false);
+        depthSaved = true;
+    }
+
+    /** Puts the world's depth back into the main target. False if there is none to put back. */
+    public static boolean restoreDepth() {
+        Minecraft mc = Minecraft.getInstance();
+        if (!depthSaved || savedDepth == null) {
+            return false;
+        }
+        RenderTarget main = mc.getMainRenderTarget();
+        if (savedDepth.width != main.width || savedDepth.height != main.height) {
+            return false;
+        }
+        main.copyDepthFrom(savedDepth);
+        main.bindWrite(false);
+        return true;
+    }
+
+    public static void releaseDepth() {
+        if (savedDepth != null) {
+            savedDepth.destroyBuffers();
+            savedDepth = null;
+        }
+        depthSaved = false;
+    }
+
+    /** Every creature this client knows about, with the given camera. */
+    public static void drawCreatures(Matrix4f view, Matrix4f projection, Vec3 cam, Vector3f look, float partial,
+            MultiBufferSource.BufferSource buffers) {
+        for (ClientPhantom phantom : ClientPhantoms.all()) {
+            if (!shouldDraw(phantom, cam, look)) {
+                continue;
+            }
+            CreatureRenderer.render(phantom, view, projection, phantom.pos.subtract(cam), partial, CreatureRenderer.lightAt(phantom), buffers);
+        }
+    }
+
+    private static boolean shouldDraw(ClientPhantom p, Vec3 cam, Vector3f look) {
+        // Leaving: it flickers out like a tape skipping, a frame there, a frame not.
+        if (p.dissolving && (p.dissolveAge % 2 == 1 || p.dissolveAge > 4)) {
+            return false;
+        }
+        double radius = p.height() * 0.75 + 1.0;
+        Vec3 center = p.pos.add(0.0, p.height() * 0.5, 0.0).subtract(cam);
+        double distanceSq = center.lengthSqr();
+        double far = 256.0 * Math.max(1.0F, p.scale);
+        if (distanceSq > far * far) {
+            return false;
+        }
+        double along = center.x * look.x() + center.y * look.y() + center.z * look.z();
+        return along > -radius;
+    }
+
+    /** A soft-edged patch lying on the block under a footprint. */
     private static void quad(VertexConsumer consumer, Matrix4f matrix, long packed, Vec3 cam, float alpha) {
         int x = BlockPos.getX(packed);
         int y = BlockPos.getY(packed);

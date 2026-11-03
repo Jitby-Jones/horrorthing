@@ -36,6 +36,12 @@ public final class Overlays {
         }
     }
 
+    /** A black frame, without silencing anything (the scream carries over it). */
+    public static void blackout(int ticks) {
+        ClientState.blackoutStart = clientTicks;
+        ClientState.blackoutEnd = clientTicks + ticks;
+    }
+
     public static void wakeTint(int ticks) {
         ClientState.wakeTintStart = clientTicks;
         ClientState.wakeTintEnd = clientTicks + ticks;
@@ -57,15 +63,14 @@ public final class Overlays {
         return clientTicks < ClientState.clockStopEnd;
     }
 
-    /** 0..1 strength of the old-photograph look right now. */
-    public static float photoAmount(float partial) {
-        float amount = StoppedClient.active() ? 0.5F : 0.0F;
+    /** 0..1: the tape look in the first seconds after a night it spent close to you. */
+    public static float morningAmount() {
         if (clientTicks < ClientState.wakeTintEnd) {
             float span = Math.max(1.0F, ClientState.wakeTintEnd - ClientState.wakeTintStart);
-            float t = (clientTicks + partial - ClientState.wakeTintStart) / span;
-            amount = Math.max(amount, Mth.clamp(1.0F - t, 0.0F, 1.0F) * 0.85F);
+            float t = (clientTicks - ClientState.wakeTintStart) / span;
+            return Mth.clamp(1.0F - t, 0.0F, 1.0F) * 0.85F;
         }
-        return amount;
+        return 0.0F;
     }
 
     public static void render(GuiGraphics graphics, float partial) {

@@ -24,7 +24,7 @@ public final class Household {
         if (gameTime % 10L == 0L) {
             petsStare(player, level);
         }
-        if (gameTime % 200L == 0L && Beats.window(state, Stage.SIGHTINGS, Stage.LIKENESS) && !Beats.hush(state, level)) {
+        if (gameTime % 200L == 0L && Beats.window(state, Stage.SIGHTINGS, Stage.HUSH) && !Beats.hush(state, level)) {
             yourHurtSound(player, state, level, gameTime);
         }
     }

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Generates The Wake's original assets: the four sounds (synthesized, no samples) and the textures.
+Generates The Wake's original assets: every sound (synthesized, no samples) and the small textures.
+The creature itself (mesh and skin) is built by tools/creature/build_creature.py.
 
     python3 tools/generate_assets.py
 
@@ -75,11 +76,11 @@ def damped(freq, decay, length, phase=0.0):
 
 
 def write_ogg(name, x):
-    os.makedirs(SOUNDS, exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.join(SOUNDS, name)), exist_ok=True)
     pcm = np.clip(x, -1.0, 1.0)
     pcm = (pcm * 32767.0).astype(np.int16)
     with tempfile.TemporaryDirectory() as tmp:
-        wav_path = os.path.join(tmp, name + ".wav")
+        wav_path = os.path.join(tmp, name.replace("/", "_") + ".wav")
         with wave.open(wav_path, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
@@ -118,22 +119,149 @@ def room_tone():
     return normalize(mix, -16)
 
 
-def shutter():
-    """An old leaf shutter: open, a beat, close. Mechanical, small, close to the ear."""
-    n = seconds(0.32)
+def click(strength, freqs=(1830, 3120, 5260), body=140):
+    c = (damped(freqs[0], 0.010, 0.06) * 0.6 + damped(freqs[1], 0.006, 0.06, 1.1) * 0.45
+         + damped(freqs[2], 0.004, 0.06, 2.3) * 0.3 + damped(body, 0.012, 0.06) * 0.5)
+    noise = band(rng.standard_normal(len(c)), 900, 9000) * np.exp(-np.arange(len(c)) / (RATE * 0.0035))
+    return (c + noise * 0.8) * strength
+
+
+def place(out, x, at):
+    i = seconds(at)
+    n = min(len(x), len(out) - i)
+    out[i:i + n] += x[:n]
+
+
+def step(variant):
+    """A bare, heavy foot put down slowly on a wooden floor: a thud, skin, a board giving a little."""
+    n = seconds(0.75)
+    t = np.arange(n) / RATE
+    thud = damped(62 + variant * 7, 0.07, 0.75) * 0.9 + damped(118 + variant * 9, 0.045, 0.75, 0.7) * 0.5
+    slap = band(rng.standard_normal(n), 500, 2600) * np.exp(-t / 0.018) * 0.55
+    heel = np.zeros(n)
+    place(heel, band(rng.standard_normal(seconds(0.2)), 120, 900) * np.exp(-np.arange(seconds(0.2)) / (RATE * 0.03)), 0.0)
+    creak = band(rng.standard_normal(n), 300 + 60 * variant, 700 + 80 * variant, 0.05) * np.exp(-((t - 0.22) / 0.12) ** 2) * 0.35
+    x = thud + slap + heel * 0.5 + creak
+    return normalize(x * np.exp(-t / 0.35), -8)
+
+
+def crack(variant):
+    """Joints: knuckles, one after another, or a neck turned too far."""
+    count = (3, 4, 7)[variant]
+    spacing = (0.05, 0.07, 0.035)[variant]
+    out = np.zeros(seconds(0.12 + count * spacing + 0.2))
+    for i in range(count):
+        f = rng.uniform(1600, 4200)
+        c = click(rng.uniform(0.5, 1.0), (f, f * 1.7, f * 2.9), rng.uniform(90, 260))
+        place(out, c, 0.02 + i * spacing + rng.uniform(-0.01, 0.01))
+    # A wet grind under the neck version.
+    if variant == 2:
+        g = band(rng.standard_normal(len(out)), 200, 1400) * 0.18
+        g *= np.clip(np.sin(np.linspace(0, np.pi, len(out))), 0, None) ** 2
+        out += g
+    return normalize(out, -7)
+
+
+def lofi(x, low=280, high=3400, drive=2.2):
+    """A cheap microphone: narrow band, saturated, a little hum."""
+    t = np.arange(len(x)) / RATE
+    y = band(x, low, high)
+    y = np.tanh(y / (np.max(np.abs(y)) or 1.0) * drive)
+    y += np.sin(2 * np.pi * 50 * t) * 0.012 + np.sin(2 * np.pi * 150 * t) * 0.006
+    return y
+
+
+def wet_breath(variant):
+    """Breathing through something wet, too slow, recorded on a cheap microphone in the room."""
+    length = 2.8 + variant * 0.6
+    n = seconds(length)
+    t = np.arange(n) / RATE
+    env = np.zeros(n)
+    a, b = 0.1, 1.2 + variant * 0.2
+    m = (t > a) & (t < b)
+    env[m] = np.sin(np.pi * (t[m] - a) / (b - a)) ** 1.4
+    c, d = b + 0.35, length - 0.1
+    m = (t > c) & (t < d)
+    env[m] = np.sin(np.pi * (t[m] - c) / (d - c)) ** 1.1 * 1.2
+    source = rng.standard_normal(n)
+    air = band(source, 350, 1100) * 0.8 + band(source, 1300, 2100) * 0.4
+    # Bubbling: fluid in the throat, a random fast flutter.
+    bubble = np.abs(band(rng.standard_normal(n), 8, 28, 0.3))
+    bubble = 0.45 + 0.9 * bubble / (np.max(bubble) or 1.0)
+    gurgle = band(source, 90, 320) * (bubble ** 2) * 0.9
+    x = (air * bubble + gurgle) * env
+    return normalize(lofi(x, 240, 3600, 2.6) * (0.25 + 0.75 * env), -12)
+
+
+def warble():
+    """The tape motor: a thin whine that wavers, under hiss. Loops."""
+    length = 6.0
+    n = seconds(length + 1.0)
+    t = np.arange(n) / RATE
+    wow = 1.0 + 0.004 * np.sin(2 * np.pi * 0.55 * t) + 0.0015 * np.sin(2 * np.pi * 7.8 * t + 1.3)
+    phase = 2 * np.pi * np.cumsum(wow) / RATE
+    whine = np.sin(phase * 1210) * 0.35 + np.sin(phase * 2420 + 0.4) * 0.12 + np.sin(phase * 60) * 0.5 + np.sin(phase * 120) * 0.25
+    hiss = band(rng.standard_normal(n), 2500, 9000) * 0.5
+    rumble = band(pink(n), 25, 140) * 0.7
+    mix = normalize(whine, -30) + normalize(hiss, -34) + normalize(rumble, -32)
+    mix = loop_crossfade(mix, 1.0)
+    return normalize(mix, -22)
+
+
+def tape_static():
+    """A burst of tape noise: snow, with the crackle of a head losing the track."""
+    n = seconds(0.9)
+    t = np.arange(n) / RATE
+    env = np.minimum(1.0, t / 0.008) * np.exp(-t / 0.32)
+    snow = band(rng.standard_normal(n), 400, 11000)
+    crackle = (rng.random(n) < 0.0016).astype(float) * rng.standard_normal(n) * 6.0
+    crackle = band(crackle, 1000, 8000)
+    buzz = np.sign(np.sin(2 * np.pi * 59.94 * t)) * 0.15
+    x = (snow + crackle * 0.6 + buzz) * env
+    return normalize(x, -9)
+
+
+def tape_click():
+    """A VCR key going down: plastic, then the mechanism taking up the tape."""
+    n = seconds(0.6)
     out = np.zeros(n)
+    place(out, click(1.0, (1450, 2600, 4100), 120), 0.0)
+    place(out, click(0.6, (900, 1700, 3000), 90), 0.07)
+    t = np.arange(seconds(0.45)) / RATE
+    whir = (np.sin(2 * np.pi * (180 + 90 * t) * t) * 0.3 + band(rng.standard_normal(len(t)), 300, 1600) * 0.2) * np.sin(np.pi * t / t[-1])
+    place(out, whir * 0.5, 0.12)
+    return normalize(out, -10)
 
-    def click(strength):
-        c = (damped(1830, 0.010, 0.06) * 0.6 + damped(3120, 0.006, 0.06, 1.1) * 0.45
-             + damped(5260, 0.004, 0.06, 2.3) * 0.3 + damped(140, 0.012, 0.06) * 0.5)
-        noise = band(rng.standard_normal(len(c)), 900, 9000) * np.exp(-np.arange(len(c)) / (RATE * 0.0035))
-        return (c + noise * 0.8) * strength
 
-    a = click(1.0)
-    b = click(0.75)
-    out[seconds(0.005):seconds(0.005) + len(a)] += a
-    out[seconds(0.092):seconds(0.092) + len(b)] += b
-    return normalize(out, -9)
+def scream():
+    """Short, distorted, very close: a voice that is not a voice, through a blown-out tape."""
+    length = 1.25
+    n = seconds(length)
+    t = np.arange(n) / RATE
+    # Pitch: lurches up, holds and wavers, collapses.
+    f0 = np.interp(t, [0, 0.08, 0.35, 0.8, 1.05, 1.25], [300, 560, 620, 590, 380, 240])
+    f0 = f0 * (1.0 + 0.035 * np.sin(2 * np.pi * 9.5 * t) + 0.02 * band(rng.standard_normal(n), 3, 18, 0.3) * 8)
+    phase = 2 * np.pi * np.cumsum(f0) / RATE
+    voice = np.zeros(n)
+    for k in range(1, 18):
+        voice += np.sin(phase * k + rng.uniform(0, 6.28)) / (k ** 0.85)
+    # A second voice a fraction off, so it beats against itself.
+    phase2 = 2 * np.pi * np.cumsum(f0 * 1.513) / RATE
+    for k in range(1, 9):
+        voice += 0.45 * np.sin(phase2 * k) / k
+    breath_noise = band(rng.standard_normal(n), 1500, 7000) * 0.6
+    x = voice / np.max(np.abs(voice)) + breath_noise
+    # Throat: formants that shift as if the jaw were opening further than it can.
+    x = band(x, 400, 3800) * 1.4 + band(x, 1800, 2600, 0.05) * 1.2 + band(x, 3000, 4200, 0.05) * 0.6
+    env = np.minimum(1.0, t / 0.025) * np.clip((length - t) / 0.18, 0.0, 1.0)
+    x *= env
+    # Blown out: saturate, crush.
+    x = np.tanh(x / (np.max(np.abs(x)) or 1.0) * 5.0)
+    step = 6
+    x = np.repeat(x[::step], step)[:n]
+    x = np.round(x * 24.0) / 24.0
+    x = band(x, 120, 7500)
+    return normalize(x, -2.5)
 
 
 def breath():
@@ -171,79 +299,81 @@ def stillness():
 # Textures
 # ---------------------------------------------------------------------------------------------
 
-def night_texture(size):
-    """Fallback for shader packs: a starfield to wrap the silhouette in."""
-    img = Image.new("RGBA", (size, size))
-    px = img.load()
-    for y in range(size):
-        for x in range(size):
-            v = y / (size - 1)
-            r = int(3 + 6 * (1 - v))
-            g = int(4 + 8 * (1 - v))
-            b = int(10 + 18 * (1 - v))
-            px[x, y] = (r, g, b, 255)
-    for _ in range(size * size // 22):
-        x, y = rng.integers(0, size, 2)
-        level = int(rng.integers(150, 256))
-        px[int(x), int(y)] = (level, level, min(255, level + 10), 255)
-    return img
-
-
 def ribbon_texture(size):
-    img = night_texture(size)
+    """Fallback for shader packs: a soft-edged patch of tape snow."""
+    img = Image.new("RGBA", (size, size))
     px = img.load()
     c = (size - 1) / 2.0
     for y in range(size):
         for x in range(size):
             d = math.hypot(x - c, y - c) / c
             a = max(0.0, min(1.0, (1.0 - d) / 0.75))
-            r, g, b, _ = px[x, y]
-            px[x, y] = (r, g, b, int(255 * a * a))
+            v = int(rng.integers(30, 230))
+            px[x, y] = (v, v, min(255, v + 8), int(220 * a * a))
+    return img
+
+
+def glint_texture(size):
+    """A soft pinpoint: something wet at the bottom of a socket."""
+    img = Image.new("RGBA", (size, size))
+    px = img.load()
+    c = (size - 1) / 2.0
+    for y in range(size):
+        for x in range(size):
+            d = math.hypot(x - c, y - c) / c
+            a = max(0.0, 1.0 - d) ** 2.2
+            px[x, y] = (255, 255, 250, int(255 * a))
     return img
 
 
 def icon():
-    """A long exposure of a figure made of night, in a sepia field."""
+    """The face, as a still from a worn tape. Built from the creature preview render if present."""
     size = 128
-    base = Image.new("RGB", (size, size))
-    px = base.load()
-    for y in range(size):
-        for x in range(size):
-            d = math.hypot(x - 64, y - 70) / 90.0
-            shade = max(0.0, 1.0 - d * 1.1)
-            grain = rng.normal(0, 7)
-            px[x, y] = (int(min(255, max(0, 92 * shade + 18 + grain))),
-                        int(min(255, max(0, 76 * shade + 14 + grain))),
-                        int(min(255, max(0, 56 * shade + 10 + grain))))
-    stars = night_texture(size)
-
-    def figure(dx, alpha):
-        mask = Image.new("L", (size, size), 0)
-        d = ImageDraw.Draw(mask)
-        ox = 64 + dx
-        d.rectangle([ox - 9, 22, ox + 9, 40], fill=alpha)          # head
-        d.rectangle([ox - 10, 41, ox + 10, 74], fill=alpha)        # body
-        d.rectangle([ox - 18, 41, ox - 11, 74], fill=alpha)        # arms
-        d.rectangle([ox + 11, 41, ox + 18, 74], fill=alpha)
-        d.rectangle([ox - 10, 75, ox - 1, 108], fill=alpha)        # legs
-        d.rectangle([ox + 1, 75, ox + 10, 108], fill=alpha)
-        return mask
-
-    out = base.convert("RGBA")
-    for dx, a in ((-15, 50), (-9, 80), (-4, 120), (0, 255)):
-        m = figure(dx, a).filter(ImageFilter.GaussianBlur(1.6 if a < 255 else 0.4))
-        out = Image.composite(stars, out, m)
-    return out.convert("RGB")
+    preview = os.path.join(ROOT, "tools", "creature", "previews", "stand_face.png")
+    if os.path.exists(preview):
+        src = Image.open(preview).convert("RGB")
+        w, h = src.size
+        side = int(min(w, h) * 0.62)
+        cx, cy = w // 2, int(h * 0.47)
+        src = src.crop((cx - side // 2, cy - side // 2, cx + side // 2, cy + side // 2)).resize((size, size), Image.LANCZOS)
+    else:
+        src = Image.new("RGB", (size, size), (20, 18, 16))
+    arr = np.asarray(src).astype(np.float32) / 255.0
+    luma = arr @ np.array([0.299, 0.587, 0.114])
+    arr = arr * 0.6 + luma[:, :, None] * 0.4
+    arr = np.clip((arr - 0.03) * 1.25, 0, 1)
+    # Chroma bleed, scanlines, grain, a tracking band.
+    shifted = arr.copy()
+    shifted[:, 2:, 0] = arr[:, :-2, 0]
+    shifted[:, :-2, 2] = arr[:, 2:, 2]
+    arr = shifted
+    rows = np.arange(size)[:, None, None]
+    arr *= 0.92 + 0.08 * (rows % 2)
+    arr += rng.normal(0, 0.035, arr.shape[:2])[:, :, None]
+    band_rows = (rows > 96) & (rows < 103)
+    arr = np.where(band_rows, arr * 0.6 + rng.random((size, size, 1)) * 0.4, arr)
+    img = Image.fromarray((np.clip(arr, 0, 1) * 255).astype(np.uint8), "RGB")
+    return img
 
 
 def main():
     write_ogg("room_tone", room_tone())
-    write_ogg("shutter", shutter())
     write_ogg("breath", breath())
     write_ogg("stillness", stillness())
+    for v in range(3):
+        write_ogg(f"creature/step{v + 1}", step(v))
+        write_ogg(f"creature/crack{v + 1}", crack(v))
+    for v in range(2):
+        write_ogg(f"creature/breath{v + 1}", wet_breath(v))
+    write_ogg("tape/warble", warble())
+    write_ogg("tape/static", tape_static())
+    write_ogg("tape/click", tape_click())
+    write_ogg("creature/scream", scream())
     os.makedirs(TEXTURES, exist_ok=True)
-    night_texture(64).save(os.path.join(TEXTURES, "night.png"))
     ribbon_texture(32).save(os.path.join(TEXTURES, "ribbon.png"))
+    entity = os.path.join(RES, "assets", "thewake", "textures", "entity")
+    os.makedirs(entity, exist_ok=True)
+    glint_texture(16).save(os.path.join(entity, "creature_glint.png"))
     icon().save(os.path.join(RES, "thewake.png"))
     print("wrote textures and icon")
 

@@ -29,7 +29,7 @@ loom {
             runDir('runs/client')
             // ./gradlew :fabric:runClient -PwakeDemo : stage every beat in a world called "demo" and screenshot it.
             if (project.hasProperty('wakeDemo')) {
-                programArgs('--quickPlaySingleplayer', 'demo')
+                programArgs('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
                 vmArg('-Dthewake.demo=true')
             }
         }

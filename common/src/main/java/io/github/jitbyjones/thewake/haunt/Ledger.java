@@ -91,13 +91,13 @@ public final class Ledger {
     @Nullable
     static String milestoneDue(HauntState state) {
         Stage peak = state.peakStage();
-        if (peak.atLeast(Stage.THEFT) && !state.hasFlag("ledger_theft")) {
+        if (peak.atLeast(Stage.HUNT) && !state.hasFlag("ledger_theft")) {
             return "ledger_theft";
         }
         if (peak.atLeast(Stage.ROUTINE) && !state.hasFlag("ledger_routine")) {
             return "ledger_routine";
         }
-        if (peak.atLeast(Stage.EXPOSURE) && !state.hasFlag("ledger_exposure")) {
+        if (peak.atLeast(Stage.WATCHING) && !state.hasFlag("ledger_exposure")) {
             return "ledger_exposure";
         }
         return null;
@@ -109,7 +109,7 @@ public final class Ledger {
         List<Component> dayLines = lines(day);
         List<Component> nightLines = new ArrayList<>();
         float stood;
-        if (peak.atLeast(Stage.THEFT)) {
+        if (peak.atLeast(Stage.HUNT)) {
             // It stopped pretending.
             nightLines.add(statLine(Component.translatable("stat.minecraft.walk_one_cm"), StatFormatter.DISTANCE.format(0)));
             stood = 1.0F;

@@ -30,3 +30,7 @@ Thumbs.db
 
 # Generated
 src/generated/**/.cache/
+
+# Creature build outputs (regenerate with tools/creature/build_creature.py)
+tools/creature/previews/
+tools/creature/export/
