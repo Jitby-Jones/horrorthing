@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/media/icon.png" width="128" alt="The Wake"></p>
+
 # The Wake
 
 > *A world folder was sent to us with one note: "I never wrote this."*
@@ -91,8 +93,9 @@ affected by that night.
 The jars end up in `fabric/build/libs/` and `neoforge/build/libs/`. Run a test client with
 `./gradlew :fabric:runClient` or `./gradlew :neoforge:runClient`.
 
-A scripted visual demo stages every beat in order and saves screenshots to the run folder. It
-needs a singleplayer world called `demo`:
+A scripted visual demo stages every beat in order and saves screenshots to
+`<loader>/runs/client/screenshots`. It needs a singleplayer world called `demo` in that run
+folder:
 
 ```bash
 ./gradlew :fabric:runClient -PwakeDemo
@@ -100,6 +103,22 @@ needs a singleplayer world called `demo`:
 
 The sounds and textures are original and synthesized. `tools/generate_assets.py` rebuilds them
 (it needs numpy, Pillow and ffmpeg with libvorbis).
+
+<details>
+<summary><b>Screenshots (spoilers)</b></summary>
+
+Captured by the scripted demo, on Fabric and NeoForge.
+
+| | |
+|---|---|
+| ![A figure cut out of the night sky, standing in a sunny field](docs/media/sighting-day.jpg) | ![The same figure at night: you notice the stars in front of the trees](docs/media/sighting-night.jpg) |
+| *Back from lost time: it has been standing there a while.* | *At night you see it by the stars in front of things.* |
+| ![Beside the bed, its head turned round to face the camera, wearing the player's own face](docs/media/head-turn.jpg) | ![The pause menu, everything blurred except one sharp figure to the side](docs/media/pause-menu.jpg) |
+| *The head turn.* | *The one thing behind the pause menu that is not blurred.* |
+| ![The Stopped: the frozen world at night with starry ribbons on the ground where the player walked](docs/media/the-stopped.jpg) | ![Morning, colour back, an advancement toast reading Somewhere New](docs/media/escaped.jpg) |
+| *The Stopped: your routes, drawn as ribbons of night.* | *One of the two endings.* |
+
+</details>
 
 <details>
 <summary><b>How it works (spoilers)</b></summary>

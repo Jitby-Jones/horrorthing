@@ -103,22 +103,25 @@ public final class PauseFigure {
         draw(mc);
     }
 
+    /** Off to one side, where the menu does not cover it: you have to look past the buttons to see it. */
     private static boolean choose(Minecraft mc) {
         Vec3 eye = cameraPos;
-        Vec3 look = Vec3.directionFromRotation(0.0F, mc.player.getYRot());
-        for (double d = 9.0; d >= 4.0; d -= 1.0) {
-            Vec3 probe = eye.add(look.scale(d));
-            BlockPos column = BlockPos.containing(probe);
-            for (int dy = 2; dy >= -6; dy--) {
-                BlockPos feet = column.offset(0, dy, 0);
-                if (mc.level.getBlockState(feet).getCollisionShape(mc.level, feet).isEmpty()
-                        && mc.level.getBlockState(feet.above()).getCollisionShape(mc.level, feet.above()).isEmpty()
-                        && !mc.level.getBlockState(feet.below()).getCollisionShape(mc.level, feet.below()).isEmpty()) {
-                    spot = Vec3.atBottomCenterOf(feet);
-                    double dx = eye.x - spot.x;
-                    double dz = eye.z - spot.z;
-                    spotYaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
-                    return true;
+        float side = mc.level.random.nextBoolean() ? 1.0F : -1.0F;
+        for (float s : new float[] {side, -side}) {
+            Vec3 look = Vec3.directionFromRotation(0.0F, mc.player.getYRot() + s * 38.0F);
+            for (double d = 9.0; d >= 5.0; d -= 1.0) {
+                BlockPos column = BlockPos.containing(eye.add(look.scale(d)));
+                for (int dy = 2; dy >= -6; dy--) {
+                    BlockPos feet = column.offset(0, dy, 0);
+                    if (mc.level.getBlockState(feet).getCollisionShape(mc.level, feet).isEmpty()
+                            && mc.level.getBlockState(feet.above()).getCollisionShape(mc.level, feet.above()).isEmpty()
+                            && !mc.level.getBlockState(feet.below()).getCollisionShape(mc.level, feet.below()).isEmpty()) {
+                        spot = Vec3.atBottomCenterOf(feet);
+                        double dx = eye.x - spot.x;
+                        double dz = eye.z - spot.z;
+                        spotYaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
+                        return true;
+                    }
                 }
             }
         }

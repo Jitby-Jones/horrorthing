@@ -2,12 +2,34 @@ package io.github.jitbyjones.thewake.client;
 
 import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.haunt.DemoScript;
+import java.util.HashSet;
+import java.util.Set;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.server.MinecraftServer;
 
-/** Development only: the screenshot half of {@link DemoScript}. */
+/**
+ * Development only: the screenshot half of {@link DemoScript}. Keyed to the integrated server's
+ * tick count (same JVM in singleplayer), so the two halves cannot drift apart.
+ */
 public final class DemoClient {
-    private static int ticks = -1;
+    private static final Object[][] SHOTS = {
+            {110, "01_sighting_day"},
+            {178, "02_waking_residue"},
+            {300, "03_bedside_before_turn"},
+            {345, "04_head_turning"},
+            {378, "05_head_turned"},
+            {440, "06_sighting_night"},
+            {600, "08_stopped_in_bed"},
+            {745, "09_stopped_walking"},
+            {765, "10_stopped_on_its_path"},
+            {1085, "11_escape_lying_down"},
+            {1160, "12_escaped_morning"},
+    };
+    private static final Set<String> TAKEN = new HashSet<>();
+    private static long pausedAt = -1L;
+    private static boolean pauseDone;
 
     private DemoClient() {}
 
@@ -16,31 +38,33 @@ public final class DemoClient {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) {
+        MinecraftServer server = mc.getSingleplayerServer();
+        if (mc.level == null || mc.player == null || server == null || DemoScript.startTick < 0) {
             return;
         }
-        ticks++;
-        switch (ticks) {
-            case 70 -> shot(mc, "01_sighting_day");
-            case 140 -> shot(mc, "02_waking_residue");
-            case 265 -> shot(mc, "03_bedside_before_turn");
-            case 312 -> shot(mc, "04_head_turning");
-            case 338 -> shot(mc, "05_head_turned");
-            case 415 -> shot(mc, "06_sighting_night");
-            case 565 -> shot(mc, "07_stopped_in_bed");
-            case 690 -> shot(mc, "08_stopped_walking");
-            case 745 -> shot(mc, "09_stopped_on_its_path");
-            case 900 -> mc.pauseGame(false);
-            case 1060 -> shot(mc, "10_pause_menu");
-            case 1080 -> mc.setScreen(null);
-            case 1205 -> shot(mc, "11_escape_lying_down");
-            case 1300 -> shot(mc, "12_escaped_morning");
-            case 1360 -> {
-                TheWake.LOG.info("[demo] done");
-                mc.stop();
+        int t = server.getTickCount() - DemoScript.startTick;
+        for (Object[] shot : SHOTS) {
+            String name = (String) shot[1];
+            if (t >= (Integer) shot[0] && TAKEN.add(name)) {
+                shot(mc, name);
             }
-            default -> {
+        }
+        // The pause menu, in real time (the server does not tick while paused).
+        if (!pauseDone && t >= 470) {
+            long now = Util.getMillis();
+            if (pausedAt < 0) {
+                pausedAt = now;
+                mc.pauseGame(false);
+            } else if (now - pausedAt > 8000L && TAKEN.add("07_pause_menu")) {
+                shot(mc, "07_pause_menu");
+            } else if (now - pausedAt > 9000L) {
+                mc.setScreen(null);
+                pauseDone = true;
             }
+        }
+        if (t >= 1220 && TAKEN.add("done")) {
+            TheWake.LOG.info("[demo] done");
+            mc.stop();
         }
     }
 

@@ -25,6 +25,8 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class DemoScript {
     public static final boolean ENABLED = Boolean.getBoolean("thewake.demo");
+    /** Server tick count when the demo began; the client's screenshots are keyed to it. -1 before. */
+    public static volatile int startTick = -1;
 
     private DemoScript() {}
 
@@ -33,6 +35,7 @@ public final class DemoScript {
             return;
         }
         TheWake.LOG.info("[demo] staging beats for {}", player.getGameProfile().getName());
+        startTick = player.server.getTickCount();
         Director.schedule(40, () -> setup(player));
         Director.schedule(80, () -> sighting(player, 9.0));
         Director.schedule(160, () -> residue(player));
