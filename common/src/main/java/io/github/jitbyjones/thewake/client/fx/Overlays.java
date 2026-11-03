@@ -59,7 +59,7 @@ public final class Overlays {
 
     /** 0..1 strength of the old-photograph look right now. */
     public static float photoAmount(float partial) {
-        float amount = StoppedClient.active() ? 0.62F : 0.0F;
+        float amount = StoppedClient.active() ? 0.5F : 0.0F;
         if (clientTicks < ClientState.wakeTintEnd) {
             float span = Math.max(1.0F, ClientState.wakeTintEnd - ClientState.wakeTintStart);
             float t = (clientTicks + partial - ClientState.wakeTintStart) / span;
@@ -72,7 +72,7 @@ public final class Overlays {
         int w = graphics.guiWidth();
         int h = graphics.guiHeight();
         float alpha = 0.0F;
-        if (clientTicks < ClientState.blackoutEnd + 12) {
+        if (ClientState.blackoutEnd > 0 && clientTicks < ClientState.blackoutEnd + 12) {
             float in = (clientTicks + partial - ClientState.blackoutStart) / 3.0F;
             float out = (ClientState.blackoutEnd + 12 - (clientTicks + partial)) / 12.0F;
             alpha = Mth.clamp(Math.min(in, out), 0.0F, 1.0F);

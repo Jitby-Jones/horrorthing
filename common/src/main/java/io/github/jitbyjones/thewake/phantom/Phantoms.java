@@ -177,7 +177,7 @@ public final class Phantoms {
             p.added = true;
             p.dirty = false;
             WakeNetwork.send(owner, new PhantomPayload(PhantomPayload.OP_SET, p.id, p.pos.x, p.pos.y, p.pos.z, p.yaw, p.mode.ordinal(),
-                    p.stance.ordinal(), p.opacity, p.smear, p.focus, p.headYaw, p.headPitch, p.headSmear, p.bedDirection, p.fadeSpeed));
+                    p.stance.ordinal(), p.opacity, p.smear, p.focus, p.headYaw, p.headPitch, p.headSmear, p.bedDirection, p.fadeSpeed, p.face));
         }
     }
 }

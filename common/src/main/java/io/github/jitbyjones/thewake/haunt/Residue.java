@@ -93,25 +93,28 @@ final class Residue {
                 .setTouch(0.9, true)
                 .setBehavior(new PhantomBehavior() {
                     private int age;
-                    private float direction = Float.NaN;
+                    private float target = Float.NaN;
 
                     @Override
                     public void tick(Phantom p, ServerPlayer owner) {
                         age++;
-                        if (Float.isNaN(direction)) {
-                            float toPlayer = Mth.wrapDegrees(Spots.yawTowards(p.pos(), owner.position()) - bodyYaw);
-                            direction = toPlayer >= 0 ? 1.0F : -1.0F;
+                        if (Float.isNaN(target) && age >= 60) {
+                            // It ends looking straight at you. If you are not already behind it, it
+                            // goes the long way round, over its own back, to get there.
+                            float delta = Mth.wrapDegrees(Spots.yawTowards(p.pos(), owner.position()) - bodyYaw);
+                            target = Math.abs(delta) < 150.0F ? delta - Math.signum(delta == 0.0F ? 1.0F : delta) * 360.0F : delta;
                         }
-                        if (age > 60 && age <= 105) {
-                            float t = (age - 60) / 45.0F;
+                        if (age > 60 && age <= 110) {
+                            float t = (age - 60) / 50.0F;
                             float eased = t * t * (3.0F - 2.0F * t);
-                            // Past vanilla's neck limit and on, until it is looking over its own back.
-                            p.setHead(direction * eased * 168.0F, Mth.lerp(eased, 40.0F, -5.0F), 0.85F * (1.0F - eased * 0.4F));
+                            p.setHead(target * eased, Mth.lerp(eased, 40.0F, -5.0F), 0.85F * (1.0F - eased * 0.4F));
+                            // Past the neck's limit, the face it turns to you is yours.
+                            p.setFace(Mth.clamp((eased - 0.6F) / 0.4F, 0.0F, 1.0F) * 0.9F);
                         }
-                        if (age == 106) {
-                            p.setHead(direction * 168.0F, -5.0F, 0.0F);
+                        if (age == 111) {
+                            p.setHead(target, -5.0F, 0.0F);
                         }
-                        if (age == 150) {
+                        if (age == 160) {
                             Phantoms.dissolve(owner, p, false);
                         }
                     }

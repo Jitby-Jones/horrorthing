@@ -34,8 +34,8 @@ public final class Exposures {
     /** It walked through here: faint, smeared along its way. */
     public static Phantom passing(ServerPlayer owner, HauntState state, BlockPos feet, float yaw) {
         return Phantoms.create(owner, Vec3.atBottomCenterOf(feet), yaw, Phantom.Mode.EXPOSURE, Phantom.Stance.WALK)
-                .setOpacity(0.32F)
-                .setSmear(0.85F)
+                .setOpacity(0.5F)
+                .setSmear(0.75F)
                 .setFocus(0.15F + 0.85F * likeness(state))
                 .setFadeSpeed(1.0F)
                 .setTouch(0.0, false);

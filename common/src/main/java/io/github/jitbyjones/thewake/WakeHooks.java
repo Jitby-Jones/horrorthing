@@ -37,6 +37,7 @@ public final class WakeHooks {
 
     public static void onJoin(ServerPlayer player) {
         Lapses.onLogin(player);
+        io.github.jitbyjones.thewake.haunt.DemoScript.onJoin(player);
     }
 
     public static void onLeave(ServerPlayer player) {

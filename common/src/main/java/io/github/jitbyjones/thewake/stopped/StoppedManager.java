@@ -138,13 +138,28 @@ public final class StoppedManager {
             return;
         }
         for (StoppedSession session : new ArrayList<>(SESSIONS.values())) {
+            try {
+                tickSession(session);
+            } catch (RuntimeException e) {
+                // Never let the finale take the server down with it: let the player go.
+                TheWake.LOG.error("The Wake: the Stopped failed for {}; releasing them", session.player.getGameProfile().getName(), e);
+                finish(session);
+                if (!session.player.hasDisconnected()) {
+                    WakeNetwork.send(session.player, StoppedPayload.leave(StoppedPayload.OUTCOME_NONE));
+                }
+            }
+        }
+    }
+
+    private static void tickSession(StoppedSession session) {
+        {
             ServerPlayer player = session.player;
             if (player.hasDisconnected() || player.isRemoved()) {
-                continue;
+                return;
             }
             if (player.level() != session.level) {
                 caught(session, false);
-                continue;
+                return;
             }
             if (session.singleplayer && session.level.getDayTime() != session.frozenDayTime) {
                 session.level.setDayTime(session.frozenDayTime);
@@ -153,7 +168,7 @@ public final class StoppedManager {
                 tickEscape(session);
             }
             if (session.phase == StoppedSession.Phase.DONE) {
-                continue;
+                return;
             }
             if (session.caught || session.tick()) {
                 caught(session, true);
@@ -205,7 +220,8 @@ public final class StoppedManager {
         if (session.escapeBed != null) {
             return true;
         }
-        if (session.distanceToOldRibbon(head, ESCAPE_DISTANCE + 1.0) < ESCAPE_DISTANCE || head.closerThan(session.oldBed, ESCAPE_DISTANCE)) {
+        double fromOldBed = Math.sqrt(Math.pow(head.getX() - session.oldBed.getX(), 2) + Math.pow(head.getZ() - session.oldBed.getZ(), 2));
+        if (session.distanceToOldRibbon(head, ESCAPE_DISTANCE + 1.0) < ESCAPE_DISTANCE || fromOldBed < ESCAPE_DISTANCE) {
             // The game's own monster check found it. And it heard you.
             player.displayClientMessage(Component.translatable("block.minecraft.bed.not_safe"), true);
             session.alert(head);
@@ -309,23 +325,28 @@ public final class StoppedManager {
         ServerPlayer player = session.player;
         HauntState state = Haunt.state(player);
         BlockPos newBed = session.escapeBed;
-        finish(session);
-        if (session.singleplayer) {
-            session.level.setDayTime((session.frozenDayTime / 24000L + 1L) * 24000L);
+        try {
+            finish(session);
+            if (session.singleplayer) {
+                session.level.setDayTime((session.frozenDayTime / 24000L + 1L) * 24000L);
+            }
+            if (player.isSleeping()) {
+                player.stopSleepInBed(false, true);
+            }
+            if (newBed != null) {
+                player.setRespawnPosition(session.level.dimension(), newBed, player.getYRot(), false, true);
+            }
+            Advancements.award(player, "somewhere_new");
+        } catch (RuntimeException e) {
+            TheWake.LOG.error("The Wake: error while ending the Stopped (escaped)", e);
+        } finally {
+            state.setOldBed(session.oldBed);
+            state.setKeptBed(null, session.facing.get2DDataValue());
+            state.setEnded(true, false);
+            state.forget();
+            state.lapse();
+            WakeNetwork.send(player, StoppedPayload.leave(StoppedPayload.OUTCOME_ESCAPED));
         }
-        if (player.isSleeping()) {
-            player.stopSleepInBed(false, true);
-        }
-        if (newBed != null) {
-            player.setRespawnPosition(session.level.dimension(), newBed, player.getYRot(), false, true);
-        }
-        state.setOldBed(session.oldBed);
-        state.setKeptBed(null, session.facing.get2DDataValue());
-        state.setEnded(true, false);
-        state.forget();
-        state.lapse();
-        Advancements.award(player, "somewhere_new");
-        WakeNetwork.send(player, StoppedPayload.leave(StoppedPayload.OUTCOME_ESCAPED));
     }
 
     /** It reached you. Laid down in your bed; the next day is lived for you. The third time, it keeps the bed. */
@@ -351,27 +372,33 @@ public final class StoppedManager {
         WakeNetwork.send(player, FxPayload.of(FxPayload.BLACKOUT, 70));
         int delay = present ? 50 : 0;
         Runnable end = () -> {
-            finish(session);
-            if (player.isSleeping()) {
-                player.stopSleepInBed(true, false);
-            }
-            if (session.singleplayer) {
-                // It lived the next day for you. You wake at its end.
-                level.setDayTime((session.frozenDayTime / 24000L + 1L) * 24000L + 12000L);
-            }
-            if (player.level() == level && level.getBlockState(session.oldBed).getBlock() instanceof BedBlock) {
-                BedBlock.findStandUpPosition(player.getType(), level, session.oldBed, session.facing, player.getYRot())
-                        .ifPresent(v -> player.teleportTo(v.x, v.y, v.z));
-            }
-            player.getFoodData().setFoodLevel(Math.max(4, player.getFoodData().getFoodLevel() - 8));
-            Ledger.leaveStolenDay(player, state, level, session.oldBed);
-            state.lapse();
-            if (kept) {
-                state.setKeptBed(session.oldBed, session.facing.get2DDataValue());
-                state.setEnded(true, true);
-            }
-            if (!player.hasDisconnected()) {
-                WakeNetwork.send(player, StoppedPayload.leave(kept ? StoppedPayload.OUTCOME_KEPT : StoppedPayload.OUTCOME_CAUGHT));
+            try {
+                finish(session);
+                if (player.isSleeping()) {
+                    player.stopSleepInBed(true, false);
+                }
+                if (session.singleplayer) {
+                    // It lived the next day for you. You wake at its end.
+                    level.setDayTime((session.frozenDayTime / 24000L + 1L) * 24000L + 12000L);
+                }
+                if (player.isAlive() && player.level() == level && level.getBlockState(session.oldBed).getBlock() instanceof BedBlock) {
+                    BedBlock.findStandUpPosition(player.getType(), level, session.oldBed, session.facing, player.getYRot())
+                            .ifPresent(v -> player.teleportTo(v.x, v.y, v.z));
+                }
+                player.getFoodData().setFoodLevel(Math.max(4, player.getFoodData().getFoodLevel() - 8));
+                Ledger.leaveStolenDay(player, state, level, session.oldBed);
+            } catch (RuntimeException e) {
+                TheWake.LOG.error("The Wake: error while ending the Stopped (caught)", e);
+            } finally {
+                // Whatever failed above, nobody stays trapped in the Stopped.
+                state.lapse();
+                if (kept) {
+                    state.setKeptBed(session.oldBed, session.facing.get2DDataValue());
+                    state.setEnded(true, true);
+                }
+                if (!player.hasDisconnected()) {
+                    WakeNetwork.send(player, StoppedPayload.leave(kept ? StoppedPayload.OUTCOME_KEPT : StoppedPayload.OUTCOME_CAUGHT));
+                }
             }
         };
         if (delay > 0 && !player.hasDisconnected()) {
@@ -411,7 +438,7 @@ public final class StoppedManager {
             Vec3 pillow = Vec3.atBottomCenterOf(bed).add(0.0, 0.6875, 0.0);
             Phantoms.create(player, pillow, facing.toYRot(), Phantom.Mode.SLEEPER, Phantom.Stance.LIE)
                     .setBedDirection(facing.get2DDataValue()).setOpacity(1.0F).setSmear(0.0F).setFocus(1.0F)
-                    .setTouch(0.0, false).setLapseGeneration(-1);
+                    .setTouch(0.0, false).setLapseGeneration(-1).setFace(0.85F);
         } else if (!near && existing != null) {
             Phantoms.remove(player, existing);
         }

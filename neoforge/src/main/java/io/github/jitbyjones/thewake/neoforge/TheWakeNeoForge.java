@@ -88,7 +88,9 @@ public final class TheWakeNeoForge {
     }
 
     private static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        // Optional: players with the mod can still join servers without it, and vice versa. Nothing
+        // haunts anyone the other side cannot hear.
+        PayloadRegistrar registrar = event.registrar("1").optional();
         registrar.playToClient(SyncPayload.TYPE, SyncPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
         registrar.playToClient(FxPayload.TYPE, FxPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
         registrar.playToClient(StoppedPayload.TYPE, StoppedPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));

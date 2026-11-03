@@ -393,3 +393,80 @@ A typical player who sleeps most nights in the same bed, with a little AFK and p
 Clarity per skipped night is 0.038 × familiarity (0.5 for a new place, 1.0 after three nights
 within 32 blocks). Repeating yesterday's routes adds 0.008 a day. Total gain is capped at 0.07 per
 in-game day. A kept night removes 0.06 × 0.7^n for the n-th consecutive kept night.
+
+---
+
+## Pass 5: Technical design
+
+How each part of the revised design is actually built, and why that way.
+
+### Shape of the code
+
+One codebase, three Gradle projects (the MultiLoader layout): `common` holds every system and is
+compiled against vanilla (NeoForm, Mojang mappings + Parchment); `fabric` and `neoforge` are thin
+glue that register things and forward loader events to `WakeHooks` / `WakeClient`. Shared hooks
+that neither loader exposes are common mixins, so both loaders run identical logic.
+
+| Concern | Where | Notes |
+|---|---|---|
+| Night skip ("sleepers still in bed") | `ServerLevelMixin` → `Lapses.onNightSkipped` | Injects at the head of vanilla's private `wakeUpAllPlayers`, which only runs right after the skip. Day time from the start of the tick is captured so the Stopped can restore the night. |
+| Sleep mods that fast-forward instead of skipping | `Director.trackSleep` | Any sleep during which ≥3000 ticks passed and dawn arrived counts. |
+| Bed refusal | Fabric `EntitySleepEvents.ALLOW_SLEEPING`, NeoForge `CanPlayerSleepEvent` → `WakeHooks.sleepProblem` | Returns vanilla's own `NOT_SAFE`, so the game prints its own line. Only at night, only when vanilla would have allowed sleep. |
+| State | `HauntData` (`SavedData` on the overworld) → `HauntState` per player | Clarity, peak act (one-way), routes, sleep spots, ledger snapshot, debt, flags, cooldowns. |
+| Routes | `Breadcrumbs` | Every block stood on (8192 most recent, with wear counts), spatially indexed for nearest/neighbour queries; BFS in the finale. |
+| The Wake | `Phantom` (server) → `PhantomPayload` → `ClientPhantom` | Not an entity. Only the owner is ever sent anything. Touch/lifecycle checks are server-side. |
+| Silhouette | `Silhouette` + `WakeRenderTypes` + `rendertype_wake_night` | The player model with the player's arm width, drawn N times (N from smear and focus) with compounding alpha. The core shader colours each fragment by its *world* view direction, so the starfield lines up like a window onto a sky behind the world. No lighting, no fog, no shadow. |
+| Shader packs | `WakeShaders.usable()` | Detects Iris/Oculus via reflection; falls back to a starfield texture with `entityTranslucentEmissive`. Config switch too. |
+| Pause figure | `ScreenMixin` (after `renderBackground`) + `PauseFigure` | Drawn after the blur with the world matrices captured during the level render: the one sharp thing behind the menu. |
+| Old-photograph look | `GameRendererMixin` + `PhotoEffect` (vanilla `PostChain`) | Program lives in the `minecraft` namespace under a prefixed name, because vanilla post passes cannot load namespaced programs. |
+| Clocks | `ItemPropertiesMixin` → `ClockOverride` | Wraps the clock's `time` property; returns the dial for the minute you last lay down. Works in hands, item frames and on the ground. |
+| Hitches | `Hitches` → `HitchPayload` | Client-measured frame stalls; validated, rate-limited and day-capped on the server. |
+| The Stopped (singleplayer) | `StoppedManager` / `StoppedSession` | Vanilla tick freeze on the integrated server, night restored; client additionally holds weather, music and non-player sounds, and draws the ribbons. Broken beds go straight to the inventory because frozen item entities can never be picked up. Escape uses vanilla `startSleeping`, so the real lying-down view and fade. |
+| The Stopped (servers, opt-in) | same, without the server freeze | Per-player client freeze, server-side invulnerability, `TargetingConditionsMixin` so nothing targets them, a custom fade instead of vanilla sleep (servers are in daytime after the skip). |
+| Commands | `/thewake status|clarity|stage|beat|reset` | Op level 2. `beat` runs any single beat now, for testing or for players who want to skip ahead. |
+
+### Safety rules in code
+
+- World edits only place into replaceable air or move items between containers.
+- Blinks and stolen mornings only target standable crumbs with no lava, fire, magma, powder snow or
+  hostile mob within reach, never in hardcore, never mid-fall, mid-fight, swimming or riding.
+- Invulnerability is only ever granted for the Stopped and is restored on every exit path
+  (escape, catch, logout, death, dimension change, server stop).
+- The tick freeze is only applied by this mod when the server was not already frozen, and only
+  undone in that case.
+
+---
+
+## Pass 6: Scope
+
+**Shipped in 1.0:** everything in passes 4–5: five acts, eleven beats, two endings, the Stopped on
+singleplayer (servers opt-in), config, commands, four original sounds, two shaders and a post
+effect, the asset generator, a scripted visual demo for development.
+
+**Deliberately left out:** a second "Doorkeeper"-style entity behind the Wake (the Night itself
+fills that role by implication, and the reviewer was right that a giant on the horizon is stock),
+voice lines (any voice would explain too much), and custom blocks or items (everything the player
+sees is a vanilla thing behaving wrongly).
+
+**Next, if it earns it:** a private copy of the player's paths for the server finale instead of a
+client freeze; per-language ledgers beyond English; a resource-pack hook so modpack makers can
+retune the sounds.
+
+---
+
+## Pass 7: Playtest fixes
+
+The mod was run in a real client (software OpenGL under a virtual display) with a scripted demo
+that stages every beat and takes screenshots. What the screenshots showed, and what changed:
+
+| Found | Fix |
+|---|---|
+| Stars in the silhouette were sub-pixel at normal resolutions: the Wake read as a flat black shape, not as night sky. | Stars now live on a cube-mapped sky and never shrink below about a pixel (`fwidth`), with a neighbourhood search so none are clipped. The figure now reads as a hole full of stars, by day and by night. |
+| The ribbons in the Stopped existed but were invisible against dark ground once desaturated. | Ribbons get a neutral lift and brighter stars; the Stopped's photo effect dropped from 0.62 to 0.5 strength. |
+| Standing just off the ribbons left the Wake parked at their edge forever: a soft-lock that looks like a hang. | After about 45 seconds at the end of its paths, it starts to step off them toward you, slowly. Visible, not a hidden timer. |
+| A head turn on a featureless silhouette is unreadable: a cube turned 168 degrees looks like a cube. | As the turn passes the neck's limit, **your own face** (from your skin) surfaces on its head. Used exactly twice in the whole mod: the head turn, and the bad ending's figure in your bed. |
+| The pause figure required window focus to even draw, so it never appeared in some setups. | It always draws; only the "seen" counter needs focus, so an alt-tabbed player still gets it later. |
+| A bed on a pillar above your paths counted as "far from your paths". | Escape distance is horizontal, at any height. |
+| On servers, inside your own Stopped, other players kept moving (vanilla never freezes players). | A client-only freeze for every player but you. |
+| A black frame flashed at client start. | Overlay guard. |
+| Payloads were required, so clients with the mod could not join servers without it. | Payloads are optional on NeoForge; Fabric already allowed it. Nothing haunts anyone the other side cannot hear. |

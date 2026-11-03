@@ -48,8 +48,9 @@ public final class Ledger {
         ServerStatsCounter stats = player.getStats();
         CompoundTag tag = new CompoundTag();
         for (String key : CUSTOM) {
-            ResourceLocation id = ResourceLocation.withDefaultNamespace(key);
-            if (BuiltInRegistries.CUSTOM_STAT.containsKey(id)) {
+            // Custom stat values are matched by identity: use the registered instance, not a new one.
+            ResourceLocation id = BuiltInRegistries.CUSTOM_STAT.get(ResourceLocation.withDefaultNamespace(key));
+            if (id != null) {
                 tag.putInt("c:" + key, stats.getValue(Stats.CUSTOM.get(id)));
             }
         }

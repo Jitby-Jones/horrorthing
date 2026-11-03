@@ -7,7 +7,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 /** Server to owner: create, update or remove one image. Nobody else is ever sent these. */
 public record PhantomPayload(int op, int id, double x, double y, double z, float yaw, int mode, int stance, float opacity,
-        float smear, float focus, float headYaw, float headPitch, float headSmear, int bedDirection, float fadeSpeed)
+        float smear, float focus, float headYaw, float headPitch, float headSmear, int bedDirection, float fadeSpeed, float face)
         implements CustomPacketPayload {
     public static final int OP_SET = 0;
     public static final int OP_REMOVE = 1;
@@ -34,25 +34,26 @@ public record PhantomPayload(int op, int id, double x, double y, double z, float
                     buf.writeFloat(p.headSmear);
                     buf.writeByte(p.bedDirection);
                     buf.writeFloat(p.fadeSpeed);
+                    buf.writeFloat(p.face);
                 }
             },
             buf -> {
                 int op = buf.readVarInt();
                 int id = buf.readVarInt();
                 if (op != OP_SET) {
-                    return new PhantomPayload(op, id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1);
+                    return new PhantomPayload(op, id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, 0);
                 }
                 return new PhantomPayload(op, id, buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readByte(),
                         buf.readByte(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(),
-                        buf.readByte(), buf.readFloat());
+                        buf.readByte(), buf.readFloat(), buf.readFloat());
             });
 
     public static PhantomPayload remove(int id, boolean dissolve) {
-        return new PhantomPayload(dissolve ? OP_DISSOLVE : OP_REMOVE, id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1);
+        return new PhantomPayload(dissolve ? OP_DISSOLVE : OP_REMOVE, id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, 0);
     }
 
     public static PhantomPayload clear() {
-        return new PhantomPayload(OP_CLEAR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1);
+        return new PhantomPayload(OP_CLEAR, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1, 0);
     }
 
     @Override

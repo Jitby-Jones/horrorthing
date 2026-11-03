@@ -6,7 +6,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ServerLevelMixin",
-    "TargetingConditionsMixin"
+    "TargetingConditionsMixin",
+    "TickRateManagerMixin"
   ],
   "client": [
     "client.ClientPacketListenerMixin",

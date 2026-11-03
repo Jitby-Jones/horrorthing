@@ -34,6 +34,9 @@ public final class ClientPhantom {
     public float prevHeadPitch;
     private float targetHeadPitch;
     public float headSmear;
+    public float face;
+    public float prevFace;
+    private float targetFace;
 
     public float walkPos;
     public float prevWalkPos;
@@ -52,12 +55,15 @@ public final class ClientPhantom {
 
     void apply(PhantomPayload p) {
         Vec3 newPos = new Vec3(p.x(), p.y(), p.z());
-        mode = Phantom.Mode.values()[Mth.clamp(p.mode(), 0, Phantom.Mode.values().length - 1)];
+        Phantom.Mode newMode = Phantom.Mode.values()[Mth.clamp(p.mode(), 0, Phantom.Mode.values().length - 1)];
+        boolean modeChanged = !fresh && newMode != mode;
+        mode = newMode;
         stance = Phantom.Stance.values()[Mth.clamp(p.stance(), 0, Phantom.Stance.values().length - 1)];
         bedDirection = p.bedDirection();
         smear = p.smear();
         focus = p.focus();
         headSmear = p.headSmear();
+        targetFace = p.face();
         targetHeadYaw = p.headYaw();
         targetHeadPitch = p.headPitch();
         targetOpacity = p.opacity();
@@ -74,8 +80,9 @@ public final class ClientPhantom {
             }
         } else {
             // A time-lapse jump (the Stopped's "getting up") is a teleport, not a walk.
-            if (newPos.distanceToSqr(targetPos) > 9.0) {
+            if (modeChanged || newPos.distanceToSqr(targetPos) > 9.0) {
                 pos = prevPos = newPos;
+                yaw = prevYaw = targetYaw;
             }
             targetPos = newPos;
         }
@@ -95,6 +102,8 @@ public final class ClientPhantom {
         prevHeadYaw = headYaw;
         prevHeadPitch = headPitch;
         prevWalkPos = walkPos;
+        prevFace = face;
+        face += (targetFace - face) * 0.15F;
 
         Vec3 before = pos;
         pos = pos.add(targetPos.subtract(pos).scale(0.5));

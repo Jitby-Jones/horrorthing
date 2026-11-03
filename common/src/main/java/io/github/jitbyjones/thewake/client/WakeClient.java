@@ -43,6 +43,7 @@ public final class WakeClient {
         StoppedClient.tick();
         PauseFigure.tick();
         io.github.jitbyjones.thewake.client.fx.RoomTone.tick();
+        DemoClient.tick();
     }
 
     public static void renderLevel(Camera camera, float partial) {

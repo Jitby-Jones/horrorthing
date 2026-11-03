@@ -91,6 +91,32 @@ public final class Breadcrumbs {
         return best;
     }
 
+    /** Horizontal distance to the nearest crumb at any height, or {@code Double.MAX_VALUE} beyond {@code maxDistance}. */
+    public double horizontalDistance(Vec3 pos, double maxDistance) {
+        ensureIndex();
+        double best = maxDistance * maxDistance;
+        boolean found = false;
+        for (int cx = cell(Math.floor(pos.x - maxDistance)); cx <= cell(Math.floor(pos.x + maxDistance)); cx++) {
+            for (int cz = cell(Math.floor(pos.z - maxDistance)); cz <= cell(Math.floor(pos.z + maxDistance)); cz++) {
+                LongArrayList list = index.get(cellKey(cx, cz));
+                if (list == null) {
+                    continue;
+                }
+                for (int i = 0; i < list.size(); i++) {
+                    long key = list.getLong(i);
+                    double dx = BlockPos.getX(key) + 0.5 - pos.x;
+                    double dz = BlockPos.getZ(key) + 0.5 - pos.z;
+                    double d = dx * dx + dz * dz;
+                    if (d < best) {
+                        best = d;
+                        found = true;
+                    }
+                }
+            }
+        }
+        return found ? Math.sqrt(best) : Double.MAX_VALUE;
+    }
+
     /** Crumbs within {@code radius} of {@code center}: the graph edges the Wake can follow. */
     public List<BlockPos> neighbours(BlockPos center, double radius) {
         ensureIndex();

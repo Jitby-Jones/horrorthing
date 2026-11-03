@@ -29,6 +29,7 @@ public final class Phantom {
     float headSmear;
     int bedDirection = -1;
     float fadeSpeed = 1.0F;
+    float face;
 
     int life = -1;
     int lapseGeneration = -1;
@@ -111,6 +112,13 @@ public final class Phantom {
         this.headYaw = yawOffset;
         this.headPitch = pitch;
         this.headSmear = Mth.clamp(smear, 0.0F, 1.0F);
+        dirty = true;
+        return this;
+    }
+
+    /** 0..1: how much of the player's own face shows on its head. Used twice in the whole mod. */
+    public Phantom setFace(float face) {
+        this.face = Mth.clamp(face, 0.0F, 1.0F);
         dirty = true;
         return this;
     }

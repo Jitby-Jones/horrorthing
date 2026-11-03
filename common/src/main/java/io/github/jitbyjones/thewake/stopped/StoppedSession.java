@@ -52,6 +52,8 @@ final class StoppedSession {
     private BlockPos alerted;
     @Nullable
     private BlockPos lastFresh;
+    /** Ticks spent standing at the end of its paths with you out of reach. */
+    private int waited;
 
     // escape
     @Nullable
@@ -185,6 +187,22 @@ final class StoppedSession {
             if (len > 0.01) {
                 pos = pos.add(toward.scale(Math.min(speed, len) / len));
             }
+            waited = 0;
+        } else if (path.isEmpty() && escapeBed == null) {
+            // At the edge of everything it knows, watching. Wait long enough and it learns to step off.
+            if (++waited > 900) {
+                Vec3 toward = target.subtract(pos);
+                double len = toward.horizontalDistance();
+                if (len > 0.01) {
+                    Vec3 step = pos.add(toward.x / len * 0.03, 0, toward.z / len * 0.03);
+                    BlockPos ground = Spots.groundNear(level, Mth.floor(step.x), Mth.floor(pos.y), Mth.floor(step.z), 2);
+                    if (ground != null) {
+                        pos = new Vec3(step.x, ground.getY(), step.z);
+                    }
+                }
+            }
+        } else {
+            waited = 0;
         }
         if (alerted != null && pos.distanceTo(Vec3.atBottomCenterOf(alerted)) < 1.5) {
             alerted = null;
@@ -219,10 +237,12 @@ final class StoppedSession {
         return Vec3.atBottomCenterOf(a).distanceToSqr(at) <= Vec3.atBottomCenterOf(b).distanceToSqr(at) ? a : b;
     }
 
-    /** Distance from a point to the nearest old ribbon (fresh ones do not count). */
+    /**
+     * Horizontal distance from a point to the nearest old ribbon, at any height (fresh ones do not
+     * count). Height does not help: a bed on a pillar above your paths is still on your paths.
+     */
     double distanceToOldRibbon(BlockPos pos, double cap) {
-        BlockPos nearest = crumbs.nearest(Vec3.atBottomCenterOf(pos), cap);
-        return nearest == null ? Double.MAX_VALUE : Math.sqrt(nearest.distSqr(pos));
+        return crumbs.horizontalDistance(Vec3.atBottomCenterOf(pos), cap);
     }
 
     /** Breadth-first search over the player's footprints, old and new. */

@@ -41,24 +41,30 @@ public final class WorldRender {
             VertexConsumer consumer = buffers.getBuffer(type);
             Matrix4f matrix = poseStack.last().pose();
             for (Long2ByteMap.Entry e : StoppedClient.ribbons().long2ByteEntrySet()) {
-                quad(consumer, matrix, e.getLongKey(), cam, 0.22F + 0.6F * Math.min(1.0F, (e.getByteValue() & 0xFF) / 10.0F));
+                quad(consumer, matrix, e.getLongKey(), cam, 0.34F + 0.6F * Math.min(1.0F, (e.getByteValue() & 0xFF) / 8.0F));
             }
             LongIterator it = StoppedClient.fresh().iterator();
             while (it.hasNext()) {
-                quad(consumer, matrix, it.nextLong(), cam, 0.16F);
+                quad(consumer, matrix, it.nextLong(), cam, 0.24F);
             }
             buffers.endBatch(type);
         }
 
         if (!ClientPhantoms.isEmpty()) {
             RenderType type = WakeRenderTypes.figure(false);
-            VertexConsumer consumer = buffers.getBuffer(type);
+            RenderType faceType = null;
             for (ClientPhantom phantom : ClientPhantoms.all()) {
                 if (phantom.pos.distanceToSqr(cam) < 192.0 * 192.0) {
-                    Silhouette.draw(poseStack, consumer, phantom, cam, partial);
+                    RenderType used = Silhouette.draw(poseStack, buffers, type, phantom, cam, partial);
+                    if (used != null) {
+                        faceType = used;
+                    }
                 }
             }
             buffers.endBatch(type);
+            if (faceType != null) {
+                buffers.endBatch(faceType);
+            }
         }
     }
 

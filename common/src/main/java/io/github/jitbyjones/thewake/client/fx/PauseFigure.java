@@ -85,7 +85,7 @@ public final class PauseFigure {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || !mc.isWindowActive()) {
+        if (mc.level == null || mc.player == null) {
             return;
         }
         long now = Util.getMillis();
@@ -95,7 +95,8 @@ public final class PauseFigure {
         if (spot == null && !choose(mc)) {
             return;
         }
-        if (lastSeenFrame > 0) {
+        // It only counts as seen while the window has focus: an alt-tabbed player saw nothing.
+        if (lastSeenFrame > 0 && mc.isWindowActive()) {
             seenMillis += Math.min(100L, now - lastSeenFrame);
         }
         lastSeenFrame = now;

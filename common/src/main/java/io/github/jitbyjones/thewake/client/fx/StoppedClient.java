@@ -79,6 +79,9 @@ public final class StoppedClient {
             return;
         }
         level.tickRateManager().setFrozen(frozen);
+        Minecraft mc = Minecraft.getInstance();
+        io.github.jitbyjones.thewake.WakeFlags.frozenClientTicks = frozen ? level.tickRateManager() : null;
+        io.github.jitbyjones.thewake.WakeFlags.localPlayer = frozen && mc.player != null ? mc.player.getUUID() : null;
         if (frozen) {
             level.setDayTime(frozenDayTime);
         }
@@ -110,6 +113,7 @@ public final class StoppedClient {
 
     public static void reset() {
         active = false;
+        io.github.jitbyjones.thewake.WakeFlags.frozenClientTicks = null;
         RIBBONS.clear();
         FRESH.clear();
         stillness = null;

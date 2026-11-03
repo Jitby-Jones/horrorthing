@@ -21,6 +21,11 @@ neoForge {
         client {
             client()
             gameDirectory = project.file('runs/client')
+            // ./gradlew :neoforge:runClient -PwakeDemo : stage every beat in a world called "demo" and screenshot it.
+            if (project.hasProperty('wakeDemo')) {
+                programArguments.addAll('--quickPlaySingleplayer', 'demo')
+                systemProperty('thewake.demo', 'true')
+            }
         }
         server {
             server()
@@ -32,5 +37,13 @@ neoForge {
         "${mod_id}" {
             sourceSet sourceSets.main
         }
+    }
+}
+
+// NeoForge runs on Mojang names and needs no mixin refmap (Fabric's Loom generates one); drop the
+// entry so production logs do not warn about a missing file.
+processResources {
+    filesMatching('thewake.mixins.json') {
+        filter { String line -> line.contains('"refmap"') ? '' : line }
     }
 }

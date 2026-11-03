@@ -11,6 +11,8 @@ import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.core.Direction;
@@ -68,19 +70,47 @@ public final class Silhouette {
         slim = null;
     }
 
-    /** One image of the Wake at a world position (camera-relative pose stack). */
-    public static void draw(PoseStack poseStack, VertexConsumer consumer, ClientPhantom phantom, Vec3 cameraPos, float partial) {
+    /**
+     * One image of the Wake at a world position (camera-relative pose stack). Returns the render type
+     * used for its face, if any, so the caller can flush it.
+     */
+    @Nullable
+    public static RenderType draw(PoseStack poseStack, MultiBufferSource buffers, RenderType figureType, ClientPhantom phantom,
+            Vec3 cameraPos, float partial) {
         Vec3 pos = phantom.lerpPos(partial);
         float opacity = phantom.lerpOpacity(partial);
         if (opacity <= 0.003F) {
-            return;
+            return null;
         }
+        float yaw = phantom.lerpYaw(partial);
         float headYaw = Mth.lerp(partial, phantom.prevHeadYaw, phantom.headYaw);
         float headPitch = Mth.lerp(partial, phantom.prevHeadPitch, phantom.headPitch);
         float walk = Mth.lerp(partial, phantom.prevWalkPos, phantom.walkPos);
-        draw(poseStack, consumer, pos.subtract(cameraPos), phantom.lerpYaw(partial), phantom.stance, phantom.bedDirection, opacity,
+        Vec3 relative = pos.subtract(cameraPos);
+        draw(poseStack, buffers.getBuffer(figureType), relative, yaw, phantom.stance, phantom.bedDirection, opacity,
                 phantom.smear, phantom.focus, headYaw, headPitch, phantom.headSmear, walk, phantom.walkSpeed, phantom.motion, phantom.id,
                 1.0F);
+        float face = Mth.lerp(partial, phantom.prevFace, phantom.face) * opacity;
+        Minecraft mc = Minecraft.getInstance();
+        if (face <= 0.01F || mc.player == null || mc.level == null) {
+            return null;
+        }
+        // Its face is yours. Only the head, lit like the room it stands in.
+        RenderType faceType = RenderType.entityTranslucent(mc.player.getSkin().texture());
+        PlayerModel<LivingEntity> model = model();
+        int light = net.minecraft.client.renderer.LevelRenderer.getLightColor(mc.level, net.minecraft.core.BlockPos.containing(pos.add(0, 1.5, 0)));
+        poseStack.pushPose();
+        poseStack.translate(relative.x, relative.y, relative.z);
+        transform(poseStack, yaw, phantom.stance, phantom.bedDirection, 1.0F);
+        headOnly(model, true);
+        model.hat.visible = true;
+        pose(model, phantom.stance, headYaw, headPitch, walk, phantom.walkSpeed, false);
+        model.renderToBuffer(poseStack, buffers.getBuffer(faceType), light, OverlayTexture.NO_OVERLAY,
+                FastColor.ARGB32.color(Math.round(face * 235.0F), 200, 200, 210));
+        model.hat.visible = false;
+        headOnly(model, false);
+        poseStack.popPose();
+        return faceType;
     }
 
     public static void draw(PoseStack poseStack, VertexConsumer consumer, Vec3 relative, float yaw, Phantom.Stance stance, int bedDirection,
@@ -89,7 +119,7 @@ public final class Silhouette {
         PlayerModel<LivingEntity> model = model();
         float time = (net.minecraft.Util.getMillis() % 1_000_000L) / 1000.0F;
         float blur = Math.max(smear, 1.0F - focus);
-        int copies = 1 + Math.round(7.0F * blur);
+        int copies = 1 + Math.round(5.0F * blur);
         // Overlapping copies compound: the core reaches the target opacity, the fringe stays faint.
         float each = 1.0F - (float) Math.pow(1.0F - Math.min(opacity, 0.985F), 1.0F / copies);
 
