@@ -1,0 +1,15 @@
+{
+  "parent": "thewake:night_owl",
+  "display": {
+    "icon": { "id": "minecraft:white_bed" },
+    "title": { "translate": "advancements.thewake.somewhere_new.title" },
+    "description": { "translate": "advancements.thewake.somewhere_new.description" },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": true
+  },
+  "criteria": {
+    "escaped": { "trigger": "minecraft:impossible" }
+  }
+}

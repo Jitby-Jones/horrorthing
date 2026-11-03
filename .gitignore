@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+out/
+bin/
+classes/
+buildSrc/.gradle/
+buildSrc/build/
+
+# Run directories
+runs/
+run/
+fabric/runs/
+neoforge/runs/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+*.launch
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated
+src/generated/**/.cache/

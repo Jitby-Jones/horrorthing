@@ -1,0 +1,15 @@
+{
+  "parent": "minecraft:adventure/sleep_in_bed",
+  "display": {
+    "icon": { "id": "minecraft:clock" },
+    "title": { "translate": "advancements.thewake.night_owl.title" },
+    "description": { "translate": "advancements.thewake.night_owl.description" },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false
+  },
+  "criteria": {
+    "kept_a_night": { "trigger": "minecraft:impossible" }
+  }
+}

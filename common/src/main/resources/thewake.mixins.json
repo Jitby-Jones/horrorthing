@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.github.jitbyjones.thewake.mixin",
+  "refmap": "${mod_id}.refmap.json",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ServerLevelMixin",
+    "TargetingConditionsMixin"
+  ],
+  "client": [
+    "client.ClientPacketListenerMixin",
+    "client.GameRendererMixin",
+    "client.ItemPropertiesMixin",
+    "client.LevelRendererMixin",
+    "client.MusicManagerMixin",
+    "client.ScreenMixin",
+    "client.SoundManagerMixin"
+  ],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

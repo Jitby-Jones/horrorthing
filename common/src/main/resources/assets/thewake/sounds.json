@@ -1,0 +1,17 @@
+{
+  "room_tone": {
+    "sounds": [ { "name": "thewake:room_tone" } ],
+    "subtitle": "subtitles.thewake.room_tone"
+  },
+  "shutter": {
+    "sounds": [ { "name": "thewake:shutter" } ],
+    "subtitle": "subtitles.thewake.shutter"
+  },
+  "breath": {
+    "sounds": [ { "name": "thewake:breath" } ],
+    "subtitle": "subtitles.thewake.breath"
+  },
+  "stillness": {
+    "sounds": [ { "name": "thewake:stillness", "stream": true } ]
+  }
+}

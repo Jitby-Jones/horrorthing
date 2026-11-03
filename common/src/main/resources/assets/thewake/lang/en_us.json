@@ -1,0 +1,18 @@
+{
+  "ledger.thewake.title": "Day %s",
+  "ledger.thewake.day": "DAY %s",
+  "ledger.thewake.night": "NIGHT %s",
+  "ledger.thewake.stood": "Time Stood By The Bed",
+  "ledger.thewake.mined": "%s Mined",
+  "ledger.thewake.crafted": "%s Crafted",
+  "ledger.thewake.eaten": "%s Eaten",
+
+  "advancements.thewake.night_owl.title": "Night Owl",
+  "advancements.thewake.night_owl.description": "Stay awake through a whole night",
+  "advancements.thewake.somewhere_new.title": "Somewhere New",
+  "advancements.thewake.somewhere_new.description": "Sleep where you have never been",
+
+  "subtitles.thewake.room_tone": "Room hums",
+  "subtitles.thewake.shutter": "Shutter clicks",
+  "subtitles.thewake.breath": "Someone breathes"
+}
