@@ -6,11 +6,16 @@ Builds The Wake's creature in headless Blender and exports it for the mod.
     python tools/creature/build_creature.py [--quick] [--previews] [--obj]
     python tools/creature/build_creature.py --previews-only --poses stand,lunge
 
-Pipeline: a skin-modifier skeleton for the body, sculpted in numpy (ribs, a sunken belly,
-vertebrae, collarbones, shoulder blades, hip bones, neck tendons, knobbed joints); a head sculpted
-from a dense sphere (deep sockets, no nose, a lipless ear-to-ear grin, a hinged jaw, two rows of
-teeth); position/normal/AO maps baked with Cycles and painted in numpy; decimated; rigged with
-bone-heat weights and posed with dual-quaternion skinning.
+The design (see docs/DESIGN.md, pass 10) takes its visual language from Doctor Nowhere's analogue
+horror: a flat black body too thin to be alive, the waist nothing but a bare jointed spine, limbs
+like sticks; and for a head, a pale bent card with a real human face pressed into it, pins driven
+through it, wet strings hanging from its edge, cut straight across at the mouth so that the lower
+part of the card can drop open.
+
+Pipeline: a skin-modifier skeleton for the body, sculpted in numpy; the head built from two dense
+rounded slabs (the card and its jaw) with the face sculpted into the front, plus eyes, teeth, pins
+and strings as tubes; position/normal/AO/part maps baked with Cycles and painted in numpy;
+decimated; rigged with bone-heat weights and posed with dual-quaternion skinning.
 
 Writes into common/src/main/resources/assets/thewake/:
     models/creature/creature.bin.gz    every pose, groups body/head/jaw (format in write_bin)
@@ -44,12 +49,18 @@ TEX_DIR = os.path.join(ASSETS, "textures", "entity")
 PREVIEW_DIR = os.path.join(ROOT, "tools", "creature", "previews")
 OBJ_DIR = os.path.join(ROOT, "tools", "creature", "export")
 
-HEAD_CENTER = np.array([0.0, -0.080, 3.13])
-HEAD_SCALE = np.array([0.146, 0.165, 0.222])
-MOUTH_HALF = 0.66
-JAW_HINGE_UNIT = np.array([0.0, 0.10, -0.06])
+# The head is a card: a pale slab, slightly bent, with a face pressed into its front, cut straight
+# across at the mouth. Head-local space: origin at HEAD_CENTER, x to the creature's left, y back,
+# z up; the face is on the -y side.
+HEAD_CENTER = np.array([0.0, -0.090, 3.125])
+SLAB = np.array([0.135, 0.020, 0.245])
+SPLIT_Z = -0.096
+JAW_HINGE_LOCAL = np.array([0.0, 0.016, SPLIT_Z])
+# Not level: one eye sits lower than the other.
+EYES_LOCAL = [np.array([-0.050, -0.020, 0.086]), np.array([0.053, -0.020, 0.068])]
+MOUTH_LOCAL = np.array([0.0, -0.022, SPLIT_Z])
 
-PART_SKIN, PART_TEETH, PART_EYE, PART_MOUTH = 0, 1, 2, 3
+PART_SKIN, PART_TEETH, PART_EYE, PART_MOUTH, PART_NEEDLE, PART_STRAND = 0, 1, 2, 3, 4, 5
 
 
 def rng(seed):
@@ -67,7 +78,7 @@ def gauss(x, sigma):
 
 # ---------------------------------------------------------------------------------------------
 # Skeleton. Some joints only shape the skin (no pose ever rotates them): they make the limbs
-# thin between knobbed joints, the way a starved arm looks.
+# thin between knobbed joints, and the waist nothing but spine.
 # ---------------------------------------------------------------------------------------------
 
 class Joint:
@@ -84,57 +95,58 @@ def skeleton():
     def add(name, pos, radius, parent):
         joints.append(Joint(name, pos, radius, parent))
 
-    add("pelvis", (0, 0.000, 1.60), (0.112, 0.080), None)
-    add("spine1", (0, 0.016, 1.78), (0.066, 0.050), "pelvis")
-    add("spine2", (0, 0.024, 1.98), (0.106, 0.076), "spine1")
-    add("chest", (0, 0.030, 2.21), (0.130, 0.090), "spine2")
-    add("upchest", (0, 0.040, 2.43), (0.118, 0.080), "chest")
-    add("neck0", (0, 0.038, 2.59), 0.048, "upchest")
-    add("neck1", (0, 0.008, 2.77), 0.036, "neck0")
-    add("neck2", (0, -0.028, 2.93), 0.035, "neck1")
-    add("skull", (0, -0.060, 3.04), 0.028, "neck2")
+    add("pelvis", (0, 0.000, 1.56), (0.078, 0.058), None)
+    # No belly: between the hips and the ribs there is only the spine.
+    add("spine1", (0, 0.026, 1.70), 0.027, "pelvis")
+    add("spine1b", (0, 0.033, 1.84), 0.024, "spine1")
+    add("spine2", (0, 0.033, 1.98), 0.027, "spine1b")
+    add("chest", (0, 0.028, 2.15), (0.090, 0.066), "spine2")
+    add("upchest", (0, 0.034, 2.35), (0.104, 0.062), "chest")
+    add("neck0", (0, 0.040, 2.49), 0.026, "upchest")
+    add("neck1", (0, 0.012, 2.69), 0.020, "neck0")
+    add("neck2", (0, -0.030, 2.87), 0.019, "neck1")
+    add("skull", (0, -0.066, 2.975), 0.016, "neck2")
 
     for side, s in (("L", 1.0), ("R", -1.0)):
-        add(f"clav_{side}", (0.085 * s, 0.046, 2.46), (0.044, 0.040), "upchest")
-        add(f"shoulder_{side}", (0.212 * s, 0.058, 2.42), 0.050, f"clav_{side}")
-        add(f"uarm_{side}", (0.228 * s, 0.066, 2.12), 0.027, f"shoulder_{side}")
-        add(f"elbow_{side}", (0.243 * s, 0.078, 1.83), 0.039, f"uarm_{side}")
-        add(f"farm_{side}", (0.258 * s, 0.060, 1.52), 0.023, f"elbow_{side}")
-        add(f"wrist_{side}", (0.270 * s, 0.034, 1.22), (0.027, 0.023), f"farm_{side}")
-        add(f"palm_{side}", (0.280 * s, 0.020, 1.10), (0.040, 0.015), f"wrist_{side}")
-        # Fingers hang down from the palm, lined up front (index) to back (little finger). Far
-        # too long; knuckles swollen, the bones between them thin.
-        for f, (dy, scale) in enumerate(((-0.040, 0.95), (-0.013, 1.0), (0.014, 0.96), (0.040, 0.80))):
-            base = np.array([0.283 * s, 0.020 + dy, 1.062])
-            spread = dy * 0.25
-            segs = (0.165 * scale, 0.140 * scale, 0.105 * scale)
+        add(f"clav_{side}", (0.074 * s, 0.040, 2.39), (0.030, 0.028), "upchest")
+        add(f"shoulder_{side}", (0.176 * s, 0.050, 2.36), 0.032, f"clav_{side}")
+        add(f"uarm_{side}", (0.188 * s, 0.058, 2.06), 0.0145, f"shoulder_{side}")
+        add(f"elbow_{side}", (0.200 * s, 0.066, 1.77), 0.024, f"uarm_{side}")
+        add(f"farm_{side}", (0.210 * s, 0.050, 1.45), 0.0125, f"elbow_{side}")
+        add(f"wrist_{side}", (0.218 * s, 0.030, 1.14), (0.017, 0.014), f"farm_{side}")
+        add(f"palm_{side}", (0.224 * s, 0.018, 1.03), (0.028, 0.010), f"wrist_{side}")
+        # Fingers far too long, the joints knotted, the bones between them thread-thin.
+        for f, (dy, scale) in enumerate(((-0.030, 0.94), (-0.010, 1.0), (0.010, 0.96), (0.029, 0.82))):
+            base = np.array([0.226 * s, 0.018 + dy, 0.995])
+            spread = dy * 0.3
+            segs = (0.175 * scale, 0.150 * scale, 0.115 * scale)
             prev = f"palm_{side}"
             p = base
-            add(f"f{f}k0_{side}", p, 0.0118, prev)
+            add(f"f{f}k0_{side}", p, 0.0080, prev)
             prev = f"f{f}k0_{side}"
             for k, seg in enumerate(segs):
                 d = np.array([0.0, spread, -1.0])
                 d /= np.linalg.norm(d)
                 mid = p + d * seg * 0.5
                 end = p + d * seg
-                add(f"f{f}m{k}_{side}", mid, 0.0084 - k * 0.0012, prev)
+                add(f"f{f}m{k}_{side}", mid, 0.0050 - k * 0.0007, prev)
                 tip = k == len(segs) - 1
-                add(f"f{f}k{k + 1}_{side}", end, 0.0030 if tip else 0.0108 - k * 0.0014, f"f{f}m{k}_{side}")
+                add(f"f{f}k{k + 1}_{side}", end, 0.0020 if tip else 0.0074 - k * 0.0010, f"f{f}m{k}_{side}")
                 prev = f"f{f}k{k + 1}_{side}"
                 p = end
-        add(f"thumb0_{side}", (0.266 * s, -0.018, 1.17), 0.0118, f"wrist_{side}")
-        add(f"thumb1_{side}", (0.262 * s, -0.046, 1.07), 0.0105, f"thumb0_{side}")
-        add(f"thumb2_{side}", (0.256 * s, -0.060, 0.985), 0.0080, f"thumb1_{side}")
-        add(f"thumb3_{side}", (0.252 * s, -0.068, 0.915), 0.0030, f"thumb2_{side}")
+        add(f"thumb0_{side}", (0.212 * s, -0.016, 1.10), 0.0078, f"wrist_{side}")
+        add(f"thumb1_{side}", (0.208 * s, -0.040, 1.00), 0.0068, f"thumb0_{side}")
+        add(f"thumb2_{side}", (0.203 * s, -0.052, 0.91), 0.0050, f"thumb1_{side}")
+        add(f"thumb3_{side}", (0.199 * s, -0.058, 0.84), 0.0020, f"thumb2_{side}")
 
-        add(f"hip_{side}", (0.106 * s, 0.000, 1.55), (0.064, 0.060), "pelvis")
-        add(f"thigh_{side}", (0.114 * s, -0.012, 1.21), 0.045, f"hip_{side}")
-        add(f"knee_{side}", (0.120 * s, -0.026, 0.86), (0.048, 0.046), f"thigh_{side}")
-        add(f"shin_{side}", (0.122 * s, 0.000, 0.50), 0.029, f"knee_{side}")
-        add(f"ankle_{side}", (0.123 * s, 0.026, 0.11), (0.030, 0.028), f"shin_{side}")
-        add(f"heel_{side}", (0.123 * s, 0.052, 0.034), (0.028, 0.026), f"ankle_{side}")
-        add(f"foot_{side}", (0.123 * s, -0.110, 0.032), (0.040, 0.020), f"ankle_{side}")
-        add(f"toe_{side}", (0.123 * s, -0.250, 0.020), (0.034, 0.010), f"foot_{side}")
+        add(f"hip_{side}", (0.076 * s, 0.000, 1.52), (0.036, 0.034), "pelvis")
+        add(f"thigh_{side}", (0.082 * s, -0.010, 1.19), 0.022, f"hip_{side}")
+        add(f"knee_{side}", (0.086 * s, -0.020, 0.84), (0.030, 0.028), f"thigh_{side}")
+        add(f"shin_{side}", (0.088 * s, 0.000, 0.48), 0.0155, f"knee_{side}")
+        add(f"ankle_{side}", (0.089 * s, 0.022, 0.10), (0.018, 0.017), f"shin_{side}")
+        add(f"heel_{side}", (0.089 * s, 0.044, 0.030), (0.017, 0.016), f"ankle_{side}")
+        add(f"foot_{side}", (0.089 * s, -0.100, 0.028), (0.024, 0.012), f"ankle_{side}")
+        add(f"toe_{side}", (0.089 * s, -0.235, 0.016), (0.020, 0.007), f"foot_{side}")
     return joints
 
 
@@ -225,169 +237,295 @@ def nearest_segment(joints, co):
 
 
 def sculpt_body(body, joints):
+    """Bone under black skin: ribs, a bare knotted spine for a waist, hip bones, shoulder points."""
     co = get_co(body.data)
     nor = get_normals(body.data)
     label, segments = nearest_segment(joints, co)
     seg_child = np.array([b for (_, b) in segments])
     child = seg_child[label]
-    torso = np.isin(child, ["spine1", "spine2", "chest", "upchest", "clav_L", "clav_R"])
-    neck = np.isin(child, ["neck0", "neck1", "neck2"])
-    pelvis = (np.isin(child, ["hip_L", "hip_R"]) & (co[:, 2] > 1.45)) | ((child == "spine1") & (co[:, 2] < 1.70))
+    ribcage = np.isin(child, ["chest", "upchest", "clav_L", "clav_R"])
+    column = np.isin(child, ["spine1", "spine1b", "spine2"])
+    neck = np.isin(child, ["neck0", "neck1", "neck2", "skull"])
+    hips = np.isin(child, ["hip_L", "hip_R"]) & (co[:, 2] > 1.42)
     x, y, z = co[:, 0], co[:, 1], co[:, 2]
-    # Angle around the spine: 0 at the front, pi at the back.
-    axis_y = np.interp(z, [1.6, 1.78, 1.98, 2.21, 2.43, 2.59, 2.77, 2.93], [0.0, 0.016, 0.024, 0.030, 0.040, 0.038, 0.008, -0.028])
+    axis_y = np.interp(z, [1.56, 1.70, 1.84, 1.98, 2.15, 2.35, 2.49, 2.69, 2.87],
+                       [0.0, 0.026, 0.033, 0.033, 0.028, 0.034, 0.040, 0.012, -0.030])
     theta = np.arctan2(x, -(y - axis_y))
     front = np.cos(theta)
     d = np.zeros(len(co))
 
-    # Ribs: sharp ridges sloping down toward the front, sunken between.
-    rc = z + 0.07 * front
-    ribs_zone = torso * smoothstep(1.93, 2.02, rc) * smoothstep(2.50, 2.42, rc)
-    costal = (front > 0.0) & (z < 2.06 + 0.30 * np.abs(theta))
-    near_sternum = smoothstep(0.10, 0.30, np.abs(theta))
-    ridge = (0.5 + 0.5 * np.cos(2.0 * math.pi * (rc - 1.95) / 0.052)) ** 4
-    ribs = ribs_zone * near_sternum * (~costal)
-    d += ribs * (0.0085 * ridge - 0.0050 * (1.0 - ridge))
-    # The costal margin: the bottom edge of the ribcage stands out over a belly sucked in under it.
-    margin_line = 2.06 + 0.30 * np.abs(theta)
-    d += 0.007 * torso * (front > 0.0) * gauss(z - margin_line, 0.012)
-    belly = torso * smoothstep(0.0, 0.5, front) * smoothstep(1.70, 1.80, z) * smoothstep(0.02, -0.05, z - margin_line)
-    d -= 0.026 * belly
-    # Sternum.
-    d += 0.005 * torso * gauss(theta, 0.10) * smoothstep(2.08, 2.16, z) * smoothstep(2.48, 2.42, z)
-    # Vertebrae down the back.
-    back = gauss(np.abs(theta) - math.pi, 0.16)
-    knobs = np.clip(np.cos(2.0 * math.pi * (z - 1.66) / 0.062), 0.0, None) ** 2
-    d += 0.011 * back * knobs * (torso | pelvis | neck) * smoothstep(1.62, 1.70, z)
-    # Shoulder blades: raised plates either side of the spine.
+    # The spine where a waist should be: knotted all the way round, vertebra after vertebra.
+    knots = np.clip(np.cos(2.0 * math.pi * (z - 1.62) / 0.046), 0.0, None) ** 3
+    d += column * (0.011 * knots - 0.003)
+    # Spines sticking back off each vertebra.
+    d += column * 0.010 * gauss(np.abs(theta) - math.pi, 0.35) * knots
+
+    # Ribs: hard ridges sloping down toward the front, deep between.
+    rc = z + 0.06 * front
+    ridge = (0.5 + 0.5 * np.cos(2.0 * math.pi * (rc - 2.02) / 0.046)) ** 4
+    zone = ribcage * smoothstep(2.0, 2.06, rc) * smoothstep(2.42, 2.36, rc) * smoothstep(0.08, 0.25, np.abs(theta))
+    d += zone * (0.0075 * ridge - 0.0045 * (1.0 - ridge))
+    # The bottom edge of the ribcage, flaring over nothing.
+    d += 0.008 * ribcage * gauss(z - 2.06, 0.018) * (front > -0.3)
+    # Sternum and the vertebrae down the back of the chest.
+    d += 0.004 * ribcage * gauss(theta, 0.09) * smoothstep(2.08, 2.14, z)
+    back = gauss(np.abs(theta) - math.pi, 0.15)
+    d += 0.009 * back * np.clip(np.cos(2.0 * math.pi * (z - 2.0) / 0.05), 0.0, None) ** 2 * (ribcage | neck)
+    # Shoulder blades standing out of the back.
     for s in (-1.0, 1.0):
-        blade = gauss(theta - s * 2.35, 0.32) * gauss(z - 2.30, 0.075) * torso
-        edge = gauss(theta - s * 2.62, 0.08) * gauss(z - 2.30, 0.09) * torso
-        d += 0.012 * blade + 0.006 * edge
-    # Collarbones, the hollows above them.
-    clav_line = 2.455 + 0.05 * np.abs(np.sin(theta))
-    cl = (torso | neck) * (front > 0.3) * smoothstep(0.12, 0.35, np.abs(theta))
-    d += 0.010 * cl * gauss(z - clav_line, 0.010)
-    d -= 0.010 * cl * gauss(z - clav_line - 0.045, 0.018)
+        d += 0.010 * ribcage * gauss(theta - s * 2.4, 0.25) * gauss(z - 2.26, 0.06)
     # Hip bones.
     for s in (-1.0, 1.0):
-        d += 0.014 * gauss(theta - s * 0.95, 0.22) * gauss(z - 1.66, 0.035) * (torso | pelvis)
-    # Neck: two tendons in a V down to the sternum, and the windpipe.
-    tz = np.clip((z - 2.60) / 0.33, 0.0, 1.0)
-    tendon_theta = 0.18 + 1.0 * tz
-    d += 0.0065 * neck * gauss(np.abs(theta) - tendon_theta, 0.14)
-    d += 0.0060 * neck * gauss(theta, 0.18) * gauss(z - 2.76, 0.03)
-    d -= 0.0050 * neck * gauss(theta, 0.15) * gauss(z - 2.63, 0.02)
-    # Skin that is not smooth: shallow lumps.
-    lumps = Noise(11)
-    d += 0.0016 * (lumps.fbm(co * 38.0, 3) - 0.5)
+        d += 0.012 * gauss(theta - s * 1.0, 0.3) * gauss(z - 1.60, 0.03) * (hips | (child == "spine1"))
+    # Lumps under the skin.
+    d += 0.0012 * (Noise(11).fbm(co * 45.0, 3) - 0.5)
     set_co(body.data, co + nor * d[:, None])
 
 
-# ---------------------------------------------------------------------------------------------
-# Head
-# ---------------------------------------------------------------------------------------------
-
-def mouth_line(x):
-    return -0.33 + 0.36 * x * x
-
-
-def head_radius(d):
-    """Displacement of the unit-sphere direction `d` (n,3): the radius of the head surface."""
-    x, y, z = d[:, 0], d[:, 1], d[:, 2]
-    front = smoothstep(-0.05, -0.55, y)
-    r = 1.0 - 0.16 * smoothstep(0.55, 1.0, -y)  # a flatter, mask-like face
-    for s in (-1.0, 1.0):
-        q = np.sqrt(((x - s * 0.33) / 0.165) ** 2 + ((z - 0.13) / 0.140) ** 2)
-        r -= 0.34 * front * smoothstep(1.0, 0.20, q)
-        r += 0.030 * front * gauss(q - 1.12, 0.12)
-        # Cheekbones, with the cheeks sunk in under them.
-        r += 0.050 * front * np.exp(-(((x - s * 0.50) / 0.10) ** 2 + ((z + 0.04) / 0.07) ** 2))
-        r -= 0.090 * front * np.exp(-(((x - s * 0.47) / 0.12) ** 2 + ((z + 0.25) / 0.11) ** 2))
-        # Temples.
-        r -= 0.060 * np.exp(-(((x - s * 0.82) / 0.13) ** 2 + ((z - 0.20) / 0.15) ** 2)) * smoothstep(0.35, -0.25, y)
-        # The angle of the jaw, under the skin.
-        r += 0.040 * np.exp(-(((x - s * 0.62) / 0.12) ** 2 + ((z + 0.55) / 0.10) ** 2)) * smoothstep(0.3, -0.3, y)
-        # No nose: two slits.
-        r -= 0.085 * front * np.exp(-(((x - s * 0.055) / 0.026) ** 2 + ((z + 0.07) / 0.060) ** 2))
-    # Brow.
-    r += 0.045 * front * gauss(z - 0.31, 0.05) * smoothstep(0.62, 0.40, np.abs(x))
-    # The grin: a recessed band, ear to ear, the lips pulled back off it.
-    zm = mouth_line(np.clip(x, -0.75, 0.75))
-    span = smoothstep(MOUTH_HALF + 0.05, MOUTH_HALF - 0.07, np.abs(x)) * front
-    band = smoothstep(0.090, 0.055, np.abs(z - zm))
-    r -= 0.11 * span * band
-    r += 0.022 * span * gauss(np.abs(z - zm) - 0.100, 0.025)
-    # A long, narrow chin.
-    r += 0.03 * front * gauss(z + 0.78, 0.10) * gauss(x, 0.25)
-    return r
-
-
-def head_point(d):
-    """Unit directions -> head-space points (blocks)."""
-    p = d * head_radius(d)[:, None]
-    taper = np.where(p[:, 2] < 0.0, 1.0 + 0.30 * p[:, 2], 1.0 + 0.04 * p[:, 2])
-    p[:, 0] *= taper
-    p[:, 2] *= np.where(p[:, 2] < 0.0, 1.14, 1.0 - 0.20 * smoothstep(0.2, 0.95, p[:, 2]))
-    return HEAD_CENTER + p * HEAD_SCALE
-
-
-def face_point(x, z, inset=1.0):
-    """Head-space point on the face at front coordinates (x, z), pushed in by `inset`."""
-    y = -math.sqrt(max(0.0, 1.0 - x * x - z * z))
-    d = np.array([[x, y, z]])
-    d /= np.linalg.norm(d)
-    p = head_point(d)[0]
-    return HEAD_CENTER + (p - HEAD_CENTER) * inset
-
-
-def in_jaw(d):
-    """The jaw: below the grin, and from the corners of the mouth back to a hinge by the ear."""
-    x, y, z = d[:, 0], d[:, 1], d[:, 2]
-    phi = np.abs(np.arctan2(x, -y))
-    corner_phi = 0.74
-    split = np.where(phi < corner_phi, mouth_line(np.clip(x, -0.75, 0.75)), 0.0)
-    corner_z = mouth_line(MOUTH_HALF)
-    side = np.interp(phi, [corner_phi, 1.35, 1.55, 1.85], [corner_z, -0.08, -0.55, -0.98])
-    split = np.where(phi >= corner_phi, side, split)
-    return z < split
-
-
-def build_head():
+def body_pins(joints, seed=17):
+    """Long pins driven into it: through a shoulder, the back, an arm. It does not notice them."""
+    r = rng(seed)
+    by_name = {j.name: j for j in joints}
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=176, v_segments=112, radius=1.0)
+    anchors = [("shoulder_L", (0.9, 0.5, 0.7), 0.42), ("upchest", (-0.4, 1.0, 0.3), 0.36), ("uarm_R", (-1.0, 0.3, 0.1), 0.30),
+               ("chest", (0.6, 0.9, -0.2), 0.30), ("thigh_L", (0.8, 0.4, 0.5), 0.26), ("neck1", (-0.7, 0.8, 0.6), 0.28)]
+    for name, direction, length in anchors:
+        j = by_name[name]
+        parent = by_name[j.parent] if j.parent else j
+        t = r.uniform(0.2, 0.8)
+        at = parent.pos + (j.pos - parent.pos) * t
+        dvec = np.array(direction, dtype=float) + r.normal(0.0, 0.15, 3)
+        dvec /= np.linalg.norm(dvec)
+        tube(bm, [at - dvec * 0.03, at + dvec * length * 0.5, at + dvec * length], 0.0040, 0.0010, 5)
+    mesh = bpy.data.meshes.new("body_pins")
+    bm.to_mesh(mesh)
+    bm.free()
+    return link(bpy.data.objects.new("body_pins", mesh))
+
+
+# ---------------------------------------------------------------------------------------------
+# Head: a card with a face in it
+# ---------------------------------------------------------------------------------------------
+
+def tube(bm, points, r0, r1, sides=5):
+    """A thin tube along a polyline, tapering from r0 to r1, closed at both ends."""
+    pts = np.asarray(points, dtype=float)
+    n = len(pts)
+    rings = []
+    prev_u = None
+    for i in range(n):
+        t = pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]
+        t /= max(np.linalg.norm(t), 1e-9)
+        a = np.array([0.0, 0.0, 1.0]) if abs(t[2]) < 0.9 else np.array([1.0, 0.0, 0.0])
+        u = np.cross(t, a) if prev_u is None else prev_u - t * (prev_u @ t)
+        u /= max(np.linalg.norm(u), 1e-9)
+        prev_u = u
+        w = np.cross(t, u)
+        radius = r0 + (r1 - r0) * i / max(1, n - 1)
+        rings.append([bm.verts.new(pts[i] + (u * math.cos(k * 2 * math.pi / sides) + w * math.sin(k * 2 * math.pi / sides)) * radius)
+                      for k in range(sides)])
+    for i in range(n - 1):
+        for k in range(sides):
+            bm.faces.new([rings[i][k], rings[i][(k + 1) % sides], rings[i + 1][(k + 1) % sides], rings[i + 1][k]])
+    bm.faces.new(rings[0][::-1])
+    bm.faces.new(rings[-1])
+
+
+def card_warp(p):
+    """Head-local points -> the card as it is: wider at the top, its sides curling back, the top
+    leaning forward over you."""
+    p = np.atleast_2d(p).astype(float).copy()
+    zn = p[:, 2] / SLAB[2]
+    xn = p[:, 0] / SLAB[0]
+    p[:, 0] *= 1.0 + 0.11 * zn
+    p[:, 1] += 0.016 * xn * xn - 0.022 * np.clip(zn, 0.0, None) ** 2
+    return p
+
+
+def face_relief(x, z):
+    """How far (blocks) the face stands out of the card at head-local (x, z); negative is a hollow."""
+    d = np.zeros_like(x)
+    # A long, real nose: a thin bridge from between the eyes, widening to the tip and wings.
+    t = np.clip((0.074 - z) / 0.112, 0.0, 1.0)
+    width = 0.0080 + 0.013 * t
+    height = 0.005 + 0.021 * t ** 1.6
+    along = smoothstep(0.088, 0.066, z) * smoothstep(-0.058, -0.036, z)
+    d += height * along * np.exp(-(x / width) ** 2)
+    for s in (-1.0, 1.0):
+        # Nostril wings, and the nostrils themselves tucked under them.
+        d += 0.0075 * np.exp(-((x - s * 0.017) / 0.0095) ** 2 - ((z + 0.038) / 0.009) ** 2)
+        d -= 0.0055 * np.exp(-((x - s * 0.0095) / 0.0036) ** 2 - ((z + 0.048) / 0.0028) ** 2)
+        # Folds from the nose down past the corners of the mouth.
+        fold_x = s * (0.024 + 0.32 * np.clip(-0.040 - z, 0.0, 0.08))
+        d -= 0.0024 * np.exp(-((x - fold_x) / 0.0045) ** 2) * smoothstep(-0.036, -0.046, z) * smoothstep(-0.114, -0.098, z)
+    # Philtrum, and thin lips either side of the cut, slightly apart.
+    d -= 0.0020 * np.exp(-(x / 0.0065) ** 2) * smoothstep(-0.054, -0.062, z) * smoothstep(-0.092, -0.084, z)
+    lips = smoothstep(0.048, 0.032, np.abs(x))
+    d += 0.0034 * lips * np.exp(-((z - (SPLIT_Z + 0.0068)) / 0.0042) ** 2)
+    d += 0.0046 * lips * np.exp(-((z - (SPLIT_Z - 0.0090)) / 0.0050) ** 2)
+    # Eyes: deep sockets, wide open, the lids pulled back off them.
+    for e in EYES_LOCAL:
+        q = np.sqrt(((x - e[0]) / 0.024) ** 2 + ((z - e[2]) / 0.0165) ** 2)
+        d -= 0.0135 * smoothstep(1.0, 0.15, q)
+        d += 0.0030 * np.exp(-((q - 1.12) / 0.20) ** 2)
+        # A brow above; dark bags pouched under.
+        d += 0.0042 * np.exp(-((x - e[0]) / 0.030) ** 2 - ((z - e[2] - 0.027) / 0.008) ** 2)
+        d += 0.0030 * np.exp(-((x - e[0]) / 0.024) ** 2 - ((z - e[2] + 0.024) / 0.0065) ** 2)
+    # Cheekbones, hollows under them, a long chin.
+    for s in (-1.0, 1.0):
+        d += 0.0038 * np.exp(-((x - s * 0.062) / 0.028) ** 2 - ((z - 0.016) / 0.026) ** 2)
+        d -= 0.0032 * np.exp(-((x - s * 0.056) / 0.024) ** 2 - ((z + 0.048) / 0.028) ** 2)
+    d += 0.0050 * np.exp(-(x / 0.036) ** 2 - ((z + 0.192) / 0.030) ** 2)
+    # The face is pressed into the card, not stuck on: it fades out into flat card.
+    region = smoothstep(0.112, 0.086, np.abs(x)) * smoothstep(0.155, 0.125, z) * smoothstep(-0.236, -0.212, z)
+    return d * region
+
+
+def slab(name, z0, z1, cuts, mouth_side):
+    """One rounded block of the card between heights z0 and z1, with the face relief on its front.
+    The faces on the cut (the inside of the mouth) get material slot 1."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=2.0)
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=cuts, use_grid_fill=True)
+    half = np.array([SLAB[0], SLAB[1], (z1 - z0) / 2.0])
+    center = np.array([0.0, 0.0, (z0 + z1) / 2.0])
+    radius = np.array([0.012, 0.009, 0.007])
     bm.verts.ensure_lookup_table()
-    dirs = np.array([v.co[:] for v in bm.verts])
-    dirs /= np.linalg.norm(dirs, axis=1)[:, None]
-    shaped = head_point(dirs)
-    jaw_mask = in_jaw(dirs)
-    for v, p in zip(bm.verts, shaped):
-        v.co = p
-    jaw_faces = {f.index for f in bm.faces if sum(jaw_mask[v.index] for v in f.verts) >= 3}
-    jaw_bm = bm.copy()
+    raw = np.array([v.co[:] for v in bm.verts])
+    p = raw * half + center
+    lo = center - half + radius
+    hi = center + half - radius
+    q = np.clip(p, lo, hi)
+    dvec = (p - q) / radius
+    n = np.linalg.norm(dvec, axis=1)
+    rounded = np.where(n[:, None] > 1e-9, q + dvec / np.maximum(n, 1e-9)[:, None] * radius, p)
+    # Face relief on the front (-y) surface only.
+    front = smoothstep(-SLAB[1] + 0.008, -SLAB[1] + 0.001, rounded[:, 1])
+    rounded[:, 1] -= face_relief(rounded[:, 0], rounded[:, 2]) * front
+    final = card_warp(rounded)
+    for v, c in zip(bm.verts, final):
+        v.co = c + HEAD_CENTER
+    bm.normal_update()
     bm.faces.ensure_lookup_table()
-    jaw_bm.faces.ensure_lookup_table()
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index in jaw_faces], context="FACES")
-    bmesh.ops.delete(jaw_bm, geom=[f for f in jaw_bm.faces if f.index not in jaw_faces], context="FACES")
-    head = to_object(bm, "head_skin")
-    jaw = to_object(jaw_bm, "jaw_skin")
-    teeth_upper = build_teeth("teeth_upper", upper=True, seed=5)
-    teeth_lower = build_teeth("teeth_lower", upper=False, seed=6)
-    eyes = build_eyes()
-    mouth_upper = ellipsoid("mouth_upper", HEAD_CENTER + np.array([0.0, -0.032, -0.032]), (0.084, 0.100, 0.056), (20, 14))
-    mouth_lower = ellipsoid("mouth_lower", HEAD_CENTER + np.array([0.0, -0.028, -0.110]), (0.074, 0.086, 0.046), (20, 14))
-    # Every part gets its own material (its identity through baking), then one object, so a
-    # single unwrap packs all of them into one texture without overlaps.
-    parts = []
-    for obj, part, group in ((head, PART_SKIN, "head"), (jaw, PART_SKIN, "jaw"), (teeth_upper, PART_TEETH, "head"),
-                             (teeth_lower, PART_TEETH, "jaw"), (eyes, PART_EYE, "head"), (mouth_upper, PART_MOUTH, "head"),
-                             (mouth_lower, PART_MOUTH, "jaw")):
-        mat = bpy.data.materials.new(obj.name)
-        mat.use_nodes = True
-        obj.data.materials.append(mat)
-        parts.append((obj.name, part, group))
-    joined = join([head, jaw, teeth_upper, teeth_lower, eyes, mouth_upper, mouth_lower], "head_all")
-    return joined, parts
+    for f in bm.faces:
+        f.smooth = True
+        c = np.array(f.calc_center_median()[:]) - HEAD_CENTER
+        nz = f.normal[2]
+        on_cut = abs(c[2] - SPLIT_Z) < 0.012
+        if on_cut and ((mouth_side == "down" and nz < -0.6) or (mouth_side == "up" and nz > 0.6)):
+            f.material_index = 1
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    return link(bpy.data.objects.new(name, mesh))
+
+
+def surface_y(x, z):
+    """Head-local y of the front of the card at (x, z), before the warp."""
+    return -SLAB[1] - face_relief(np.array([x]), np.array([z]))[0]
+
+
+def eye_centers():
+    out = []
+    for e in EYES_LOCAL:
+        local = np.array([e[0], surface_y(e[0], e[2]) + 0.0080, e[2]])
+        out.append(card_warp(local)[0] + HEAD_CENTER)
+    return out
+
+
+def build_eyes():
+    """Small, black, wet. They catch the light; nothing else in the face does."""
+    bm = bmesh.new()
+    for c in eye_centers():
+        res = bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=16, radius=0.0115)
+        for v in res["verts"]:
+            v.co = np.array(v.co[:]) + c
+    obj = to_object(bm, "eyes")
+    return obj
+
+
+def build_teeth(name, upper, seed):
+    """Small, flat, too many: only seen when the card comes apart."""
+    r = rng(seed)
+    bm = bmesh.new()
+    count = 12 if upper else 14
+    for i in range(count):
+        x = -0.044 + 0.088 * (i + 0.5) / count + r.normal(0.0, 0.0008)
+        h = 0.0105 + r.uniform(-0.002, 0.003)
+        w = 0.088 / count * 0.82
+        y = surface_y(x, SPLIT_Z) + 0.0085
+        zc = SPLIT_Z - h * 0.5 + 0.001 if upper else SPLIT_Z + h * 0.5 - 0.001
+        tilt = r.normal(0.0, 0.08)
+        local = []
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                for sz in (-1, 1):
+                    taper = 0.75 if (sz < 0) == upper else 1.0
+                    local.append([x + sx * w * 0.5 * taper + sz * tilt * h * 0.5, y + sy * 0.003, zc + sz * h * 0.5])
+        world = card_warp(np.array(local)) + HEAD_CENTER
+        vs = [bm.verts.new(c) for c in world]
+        for face in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
+            bm.faces.new([vs[k] for k in face])
+    obj = to_object(bm, name)
+    for poly in obj.data.polygons:
+        poly.use_smooth = False
+    return obj
+
+
+def build_needles(seed=23):
+    """Pins driven through the card, radiating out of it at every angle."""
+    r = rng(seed)
+    bm = bmesh.new()
+    count = 11
+    for i in range(count):
+        a = (i + r.uniform(-0.3, 0.3)) / count * 2.0 * math.pi
+        # A point near the edge of the card, and a direction out of it, mostly in its plane.
+        ex, ez = math.cos(a), math.sin(a)
+        start = np.array([ex * SLAB[0] * r.uniform(0.35, 0.8), r.uniform(-0.02, 0.02), 0.04 + ez * SLAB[2] * r.uniform(0.3, 0.75)])
+        direction = np.array([ex, r.uniform(-0.6, 0.6), ez * 1.1])
+        direction /= np.linalg.norm(direction)
+        length = r.uniform(0.17, 0.42)
+        pts = [start - direction * 0.02, start + direction * length * 0.5, start + direction * length]
+        world = card_warp(np.array(pts)) + HEAD_CENTER
+        tube(bm, world, 0.0042, 0.0010, 5)
+    # Two driven straight through the face: one high on the forehead, one through a cheek.
+    for start, direction, length in ((np.array([0.030, 0.0, 0.170]), np.array([0.25, -1.0, 0.35]), 0.24),
+                                     (np.array([-0.072, 0.0, -0.030]), np.array([-0.45, -1.0, -0.25]), 0.20)):
+        direction = direction / np.linalg.norm(direction)
+        pts = [start - direction * 0.05, start + direction * length * 0.5, start + direction * length]
+        tube(bm, card_warp(np.array(pts)) + HEAD_CENTER, 0.0034, 0.0009, 5)
+    mesh = bpy.data.meshes.new("needles")
+    bm.to_mesh(mesh)
+    bm.free()
+    return link(bpy.data.objects.new("needles", mesh))
+
+
+def build_strands(name, z_from, count, length_range, seed, edge_only=False):
+    """Pale wet strings hanging off the card's lower edge, too many to be hair."""
+    r = rng(seed)
+    bm = bmesh.new()
+    for i in range(count):
+        if edge_only:
+            side = 1.0 if i % 2 == 0 else -1.0
+            x = side * SLAB[0] * r.uniform(0.85, 0.98)
+            z = r.uniform(z_from, z_from + 0.15)
+        else:
+            x = r.uniform(-0.115, 0.115)
+            z = z_from + 0.004
+        y = r.uniform(-SLAB[1] * 0.9, SLAB[1] * 0.6)
+        length = r.uniform(*length_range)
+        n = 7
+        pts = []
+        sway = r.normal(0.0, 0.012, 2)
+        for k in range(n):
+            t = k / (n - 1)
+            pts.append([x + sway[0] * t * t + r.normal(0.0, 0.002) * t, y + sway[1] * t * t - 0.01 * t, z - length * t])
+        world = card_warp(np.array(pts)) + HEAD_CENTER
+        tube(bm, world, r.uniform(0.0018, 0.0032), 0.0012, 4)
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    return link(bpy.data.objects.new(name, mesh))
 
 
 def to_object(bm, name):
@@ -399,80 +537,35 @@ def to_object(bm, name):
     return link(bpy.data.objects.new(name, mesh))
 
 
-def ellipsoid(name, center, radii, segments):
-    bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=segments[0], v_segments=segments[1], radius=1.0)
-    for v in bm.verts:
-        v.co = center + np.array(v.co[:]) * np.array(radii)
-    return to_object(bm, name)
-
-
-def add_box(bm, center, size, right, up, out, taper=0.8):
-    """A tooth: a box narrowing toward its biting edge (the -up end)."""
-    corners = []
-    for sz in (-1, 1):
-        w = 1.0 if sz > 0 else taper
-        for sx in (-1, 1):
-            for sy in (-1, 1):
-                corners.append(center + right * sx * size[0] * 0.5 * w + out * sy * size[1] * 0.5 * (0.7 + 0.3 * w)
-                               + up * sz * size[2] * 0.5)
-    vs = [bm.verts.new(c) for c in corners]
-    for face in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
-        bm.faces.new([vs[i] for i in face])
-
-
-def build_teeth(name, upper, seed):
-    """Small, flat, human teeth, far too many of them, packed into the grin."""
-    r = rng(seed)
-    bm = bmesh.new()
-    count = 30
-    missing = set(r.choice(count, 2, replace=False).tolist())
-    for i in range(count):
-        if i in missing and 3 < i < count - 3:
-            continue
-        fx = -0.60 + 1.20 * (i + 0.5) / count
-        zm = mouth_line(fx)
-        fz = zm + (0.042 if upper else -0.042)
-        p = face_point(fx, fz)
-        # Local frame: along the grin, up, and out of the face.
-        p2 = face_point(fx + 0.01, mouth_line(fx + 0.01) + (0.042 if upper else -0.042))
-        right = p2 - p
-        right /= np.linalg.norm(right)
-        out = p - HEAD_CENTER
-        out[2] = 0.0
-        out -= right * (out @ right)
-        out /= np.linalg.norm(out)
-        up = np.cross(out, right)
-        up /= np.linalg.norm(up)
-        if up[2] < 0:
-            up = -up
-        if not upper:
-            up = -up  # lower teeth point up: "up" here means toward the root
-        height = 0.0175 + r.uniform(-0.0025, 0.0035)
-        width = 1.20 / count * HEAD_SCALE[0] * (0.86 + r.uniform(-0.08, 0.06))
-        center = p + out * 0.002 + r.normal(0.0, 0.0005, 3)
-        tilt = r.normal(0.0, 0.10)
-        right_t = right * math.cos(tilt) + up * math.sin(tilt)
-        up_t = up * math.cos(tilt) - right * math.sin(tilt)
-        add_box(bm, center, (width, 0.010, height), right_t, up_t, out, taper=0.78 if upper else 0.85)
-    obj = to_object(bm, name)
-    for poly in obj.data.polygons:
-        poly.use_smooth = False
-    return obj
-
-
-def build_eyes():
-    """Small wet eyes at the bottom of the sockets."""
-    bm = bmesh.new()
-    for c in eye_centers():
-        res = bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=14, radius=0.020)
-        for v in res["verts"]:
-            v.co = np.array(v.co[:]) + c
-    return to_object(bm, "eyes")
-
-
-def eye_centers():
-    return [face_point(0.33 * s, 0.13, inset=1.0) + np.array([0.0, -0.004, 0.0]) for s in (1.0, -1.0)]
+def build_head():
+    upper = slab("head_card", SPLIT_Z, SLAB[2], 56, "down")
+    lower = slab("jaw_card", -SLAB[2], SPLIT_Z, 40, "up")
+    eyes = build_eyes()
+    teeth_upper = build_teeth("teeth_upper", True, 5)
+    teeth_lower = build_teeth("teeth_lower", False, 6)
+    needles = build_needles()
+    strands_jaw = build_strands("strands_jaw", -SLAB[2], 22, (0.10, 0.55), 31)
+    strands_head = build_strands("strands_head", SPLIT_Z + 0.02, 6, (0.18, 0.40), 37, edge_only=True)
+    # Each part gets its own material (its identity through baking), then one object, so a single
+    # unwrap packs them all into one texture without overlaps.
+    parts = []
+    specs = ((upper, "head_skin", PART_SKIN, "head"), (lower, "jaw_skin", PART_SKIN, "jaw"), (eyes, "eyes", PART_EYE, "head"),
+             (teeth_upper, "teeth_upper", PART_TEETH, "head"), (teeth_lower, "teeth_lower", PART_TEETH, "jaw"),
+             (needles, "needles", PART_NEEDLE, "head"), (strands_jaw, "strands_jaw", PART_STRAND, "jaw"),
+             (strands_head, "strands_head", PART_STRAND, "head"))
+    for obj, mat_name, part, group in specs:
+        mat = bpy.data.materials.new(mat_name)
+        mat.use_nodes = True
+        obj.data.materials.append(mat)
+        parts.append((mat_name, part, group))
+        if obj in (upper, lower):
+            inner = "mouth_upper" if obj is upper else "mouth_lower"
+            mat2 = bpy.data.materials.new(inner)
+            mat2.use_nodes = True
+            obj.data.materials.append(mat2)
+            parts.append((inner, PART_MOUTH, "head" if obj is upper else "jaw"))
+    joined = join([upper, lower, eyes, teeth_upper, teeth_lower, needles, strands_jaw, strands_head], "head_all")
+    return joined, parts
 
 
 # ---------------------------------------------------------------------------------------------
@@ -612,94 +705,110 @@ def mix(a, b, t):
     return a * (1.0 - t) + b * t
 
 
-def paint_skin(p, n, ao, face_unit=None, ao_power=1.5):
-    """Grey-yellow skin, mottled and bruised, dirtier toward the hands and feet."""
+def paint_body(p, n, ao, part):
+    """Black. Not shiny, not matte: like something wet that has dried. The bones show grey where
+    they push the skin out; pins are dull steel."""
     N = len(p)
     big = Noise(21).fbm(p * 3.0, 4)
-    mid = Noise(22).fbm(p * 11.0, 4)
-    fine = Noise(23).fbm(p * 60.0, 3)
-    bruise_n = Noise(24).fbm(p * 4.5 + 3.0, 4)
-    vein_n = Noise(25).fbm(p * 7.0, 5)
-    skin = srgb_to_linear((160, 152, 136))
-    sallow = srgb_to_linear((156, 146, 108))
-    grey = srgb_to_linear((128, 128, 124))
-    bruise = srgb_to_linear((100, 76, 90))
-    yellow_bruise = srgb_to_linear((150, 140, 92))
-    red = srgb_to_linear((150, 98, 92))
-    dirt = srgb_to_linear((58, 48, 38))
-    col = np.tile(skin, (N, 1))
-    col = mix(col, sallow, smoothstep(0.45, 0.75, big) * 0.7)
-    col = mix(col, grey, smoothstep(0.55, 0.30, big) * 0.6)
-    col = mix(col, bruise, smoothstep(0.58, 0.74, bruise_n) * 0.75)
-    col = mix(col, yellow_bruise, smoothstep(0.55, 0.62, bruise_n) * smoothstep(0.66, 0.60, bruise_n) * 0.5)
-    col *= (0.78 + 0.44 * mid)[:, None]
-    col *= (0.93 + 0.14 * fine)[:, None]
-    # Veins: thin, branching, faintly blue-grey, under the thinnest skin.
-    vein = smoothstep(0.018, 0.0, np.abs(vein_n - 0.5)) * smoothstep(0.35, 0.65, Noise(26).fbm(p * 2.0, 2))
-    col = mix(col, col * srgb_to_linear((120, 132, 160)) / skin, vein * 0.55)
-    # Cavities: everything deep is darker and redder (thin skin, no light).
-    cavity = 1.0 - ao
-    col = mix(col, col * red / skin, smoothstep(0.15, 0.6, cavity) * 0.5)
-    col *= (np.clip(ao, 0.0, 1.0) ** ao_power)[:, None]
-    # Filth: hands and feet, darkening up the limbs.
-    if face_unit is None:
-        z = p[:, 2]
-        hands = smoothstep(1.25, 0.70, z) * smoothstep(0.15, 0.24, np.abs(p[:, 0]))
-        feet = smoothstep(0.30, 0.04, z)
-        filth = np.clip(hands + feet, 0.0, 1.0) * (0.55 + 0.45 * Noise(27).fbm(p * 9.0, 3))
-        col = mix(col, dirt, filth * 0.85)
-        # Knees and elbows: rough and dark.
-        for jz, jx in ((0.86, 0.12), (1.83, 0.245)):
-            knob = gauss(z - jz, 0.04) * gauss(np.abs(p[:, 0]) - jx, 0.05)
-            col = mix(col, col * red / skin * 0.8, knob * 0.6)
-        # Nails: the very tips of the fingers and toes.
-        tips = smoothstep(0.66, 0.60, z) * smoothstep(0.2, 0.25, np.abs(p[:, 0])) + smoothstep(-0.20, -0.25, p[:, 1]) * smoothstep(0.05, 0.02, z)
-        col = mix(col, srgb_to_linear((92, 80, 52)), np.clip(tips, 0, 1) * 0.8)
+    mid = Noise(22).fbm(p * 14.0, 4)
+    fine = Noise(23).fbm(p * 70.0, 3)
+    base = srgb_to_linear((17, 15, 16))
+    dust = srgb_to_linear((58, 52, 50))
+    rot = srgb_to_linear((34, 18, 16))
+    col = np.tile(base, (N, 1))
+    col = mix(col, rot, smoothstep(0.55, 0.75, big) * 0.6)
+    # Raised places (bone under skin) catch a grey film; hollows go to nothing.
+    raised = smoothstep(0.86, 1.0, ao) * smoothstep(0.35, 0.75, mid)
+    col = mix(col, dust, raised * 0.45)
+    col *= (0.85 + 0.3 * fine)[:, None]
+    col *= (np.clip(ao, 0.0, 1.0) ** 1.2)[:, None]
+    pins = part == PART_NEEDLE
+    if pins.any():
+        col[pins] = srgb_to_linear((44, 44, 48)) * (0.7 + 0.3 * fine[pins, None])
     return col
 
 
 def paint_head(p, n, ao, part):
-    u = (p - HEAD_CENTER) / HEAD_SCALE
-    x, z = u[:, 0], u[:, 2]
-    col = paint_skin(p * 1.8, n, ao, face_unit=u, ao_power=1.0)
-    # The face is the palest thing about it: it has to catch what little light there is.
-    pale = srgb_to_linear((190, 185, 172))
-    front = smoothstep(-0.05, -0.6, u[:, 1])
-    col = mix(col, pale * (0.72 + 0.28 * ao[:, None]), front * 0.55)
-    # Bruised rings around the sockets.
+    """An old card, stained and handled, with a face on it that looks like a photograph of a face:
+    flesh where the features are, paper everywhere else. The eyes are the only wet thing on it."""
+    N = len(p)
+    local = p - HEAD_CENTER
+    x, y, z = local[:, 0], local[:, 1], local[:, 2]
+    big = Noise(41).fbm(p * 9.0, 4)
+    mid = Noise(42).fbm(p * 35.0, 4)
+    fine = Noise(43).fbm(p * 160.0, 3)
+    stain_n = Noise(44).fbm(p * 6.0 + 2.0, 5)
+    smudge_n = Noise(47).fbm(p * 18.0 + 5.0, 4)
+    card = srgb_to_linear((206, 198, 178))
+    yellowed = srgb_to_linear((186, 164, 116))
+    grime = srgb_to_linear((104, 92, 76))
+    flesh = srgb_to_linear((192, 156, 136))
+    shadow_flesh = srgb_to_linear((118, 82, 76))
+    col = np.tile(card, (N, 1))
+    col = mix(col, yellowed, smoothstep(0.46, 0.70, stain_n) * 0.8)
+    ring = smoothstep(0.018, 0.0, np.abs(stain_n - 0.6))
+    col = mix(col, grime, ring * 0.45)
+    col = mix(col, grime, smoothstep(0.62, 0.78, smudge_n) * 0.35)
+    col *= (0.88 + 0.24 * mid)[:, None]
+    # Handled edges, darker toward the bottom where it hangs.
+    edge = np.maximum(np.abs(x) / (SLAB[0] * 1.12), np.abs(z) / SLAB[2])
+    col = mix(col, grime, smoothstep(0.84, 1.0, edge) * 0.6)
+    col = mix(col, grime, smoothstep(-0.05, -0.24, z) * 0.25)
+    # The face, printed in: flesh fading into paper, strongest where the features are.
+    front = smoothstep(-0.2, -0.7, n[:, 1])
+    face = np.exp(-((x / 0.080) ** 2) - (((z + 0.025) / 0.150) ** 2)) * front
+    col = mix(col, flesh * (0.9 + 0.2 * big[:, None]), np.clip(face * 1.3, 0.0, 0.92))
+    # Sockets in deep shadow, bruised lids and bags.
+    for e in EYES_LOCAL:
+        q = np.sqrt(((x - e[0]) / 0.032) ** 2 + ((z - e[2]) / 0.024) ** 2)
+        col = mix(col, shadow_flesh * 0.5, smoothstep(1.35, 0.55, q) * front * 0.85)
+    # Nostrils: two dark holes, nothing joining them.
     for s in (-1.0, 1.0):
-        q = np.sqrt(((x - s * 0.33) / 0.165) ** 2 + ((z - 0.13) / 0.140) ** 2)
-        ring = smoothstep(1.7, 1.0, q) * front
-        col = mix(col, srgb_to_linear((84, 66, 72)), ring * 0.5)
-        col = mix(col, srgb_to_linear((4, 3, 3)), smoothstep(1.0, 0.6, q) * front)
-    # The nose slits.
-    for s in (-1.0, 1.0):
-        slit = np.exp(-(((x - s * 0.055) / 0.014) ** 2 + ((z + 0.07) / 0.05) ** 2))
-        col = mix(col, srgb_to_linear((20, 10, 10)), np.clip(slit * 1.4, 0, 1) * front)
-    # Gums, and lips that are barely there.
-    zm = mouth_line(np.clip(x, -0.75, 0.75))
-    span = smoothstep(MOUTH_HALF + 0.04, MOUTH_HALF - 0.05, np.abs(x)) * front
-    band = smoothstep(0.090, 0.060, np.abs(z - zm))
-    col = mix(col, srgb_to_linear((62, 28, 28)), band * span)
-    lips = gauss(np.abs(z - zm) - 0.098, 0.016) * span
-    col = mix(col, srgb_to_linear((112, 84, 78)), lips * 0.6)
-    # Mouth corners split a little further than they should.
-    corner = gauss(np.abs(x) - MOUTH_HALF - 0.02, 0.03) * gauss(z - mouth_line(MOUTH_HALF), 0.02) * front
-    col = mix(col, srgb_to_linear((60, 20, 22)), np.clip(corner * 1.5, 0, 1))
-    # Teeth: yellowed, darker at the gumline and between each tooth.
+        hole = np.exp(-((x - s * 0.0095) / 0.0034) ** 2 - ((z + 0.0485) / 0.0024) ** 2)
+        col = mix(col, srgb_to_linear((30, 16, 16)), np.clip(hole * 1.3, 0.0, 1.0) * front)
+    # Thin lips; between them a sliver of dark.
+    lips = smoothstep(0.046, 0.030, np.abs(x)) * smoothstep(0.016, 0.005, np.abs(z - SPLIT_Z)) * front
+    col = mix(col, srgb_to_linear((140, 86, 82)), lips * 0.85)
+    col = mix(col, srgb_to_linear((26, 8, 8)), smoothstep(0.0032, 0.0, np.abs(z - SPLIT_Z)) * front)
+    col *= (0.93 + 0.14 * fine)[:, None]
+    col *= (np.clip(ao, 0.0, 1.0) ** 1.1)[:, None]
     teeth = part == PART_TEETH
     if teeth.any():
-        t_col = np.tile(srgb_to_linear((206, 196, 160)), (teeth.sum(), 1))
-        stain = Noise(31).fbm(p[teeth] * 200.0, 3)
-        t_col = mix(t_col, srgb_to_linear((150, 128, 84)), smoothstep(0.45, 0.75, stain) * 0.8)
-        t_col *= (np.clip(ao[teeth], 0, 1) ** 2.2)[:, None]
-        col[teeth] = t_col
+        t = np.tile(srgb_to_linear((200, 186, 146)), (teeth.sum(), 1))
+        t = mix(t, srgb_to_linear((140, 116, 72)), smoothstep(0.45, 0.75, Noise(31).fbm(p[teeth] * 300.0, 3)) * 0.8)
+        col[teeth] = t * (np.clip(ao[teeth], 0, 1) ** 1.8)[:, None]
     eye = part == PART_EYE
     if eye.any():
-        col[eye] = srgb_to_linear((8, 6, 6)) * (0.6 + 0.4 * ao[eye, None])
+        # A real eye, looking straight out: yellowed white, a small dark iris, a smaller pupil.
+        pe = p[eye]
+        centres = eye_centers()
+        d0 = np.linalg.norm(pe - centres[0], axis=1)
+        d1 = np.linalg.norm(pe - centres[1], axis=1)
+        c = np.where((d0 < d1)[:, None], centres[0], centres[1])
+        dirn = (pe - c) / np.maximum(np.linalg.norm(pe - c, axis=1), 1e-9)[:, None]
+        # One eye does not quite look where the other does.
+        gaze = np.where((d0 < d1)[:, None], np.array([0.0, -1.0, 0.0]), np.array([0.22, -0.97, 0.05]))
+        look = np.sum(dirn * gaze, axis=1)
+        sclera = mix(np.tile(srgb_to_linear((214, 204, 182)), (len(pe), 1)), srgb_to_linear((176, 92, 84)),
+                     smoothstep(0.45, 0.05, look) * 0.7 * smoothstep(0.4, 0.7, Noise(48).fbm(pe * 400.0, 3)))
+        iris = srgb_to_linear((52, 40, 30))
+        pupil = srgb_to_linear((4, 3, 3))
+        e_col = mix(sclera, iris, smoothstep(0.86, 0.90, look))
+        e_col = mix(e_col, pupil, smoothstep(0.955, 0.965, look))
+        col[eye] = e_col * (0.45 + 0.55 * ao[eye, None])
     mouth = part == PART_MOUTH
     if mouth.any():
-        col[mouth] = srgb_to_linear((26, 8, 9)) * (0.5 + 0.5 * ao[mouth, None])
+        wet = Noise(45).fbm(p[mouth] * 80.0, 3)
+        col[mouth] = srgb_to_linear((44, 10, 12)) * (0.55 + 0.6 * wet[:, None]) * (0.5 + 0.5 * ao[mouth, None])
+    pins = part == PART_NEEDLE
+    if pins.any():
+        col[pins] = srgb_to_linear((64, 64, 68)) * (0.7 + 0.3 * fine[pins, None])
+    strands = part == PART_STRAND
+    if strands.any():
+        wet = Noise(46).fbm(p[strands] * 60.0, 3)
+        s_col = mix(np.tile(srgb_to_linear((206, 198, 176)), (strands.sum(), 1)), srgb_to_linear((120, 100, 84)),
+                    smoothstep(-0.12, -0.45, z[strands]) * 0.7)
+        col[strands] = s_col * (0.8 + 0.3 * wet[:, None])
     return col
 
 
@@ -910,87 +1019,92 @@ def merge(*dicts):
 #   rx +: spine/neck bend forward; a hanging limb swings BACK; - swings it forward.
 #   ry +: tips toward +X (the creature's left). Left fingers curl with +ry, right with -ry.
 #   rz +: turns counter-clockwise seen from above (head turns to its left).
-HUNCH = {"spine2": (8, 0, 0), "chest": (12, 0, 0), "upchest": (14, 0, 0), "neck0": (34, 0, 0), "neck1": (18, 0, 0),
-         "neck2": (-58, 0, 0), "clav_L": (0, 0, -12), "clav_R": (0, 0, 12)}
+# Extra keys: "jaw" (degrees the card's lower part drops open), "jaw_drop" (blocks it slides down).
+HUNCH = {"spine2": (6, 0, 0), "chest": (10, 0, 0), "upchest": (12, 0, 0), "neck0": (34, 0, 0), "neck1": (20, 0, 0),
+         "neck2": (-58, 0, 0), "clav_L": (0, 0, -10), "clav_R": (0, 0, 10)}
 
 POSES = {
-    # Upright: too tall, the head hung forward on a long neck, tilted. Rarely seen like this indoors.
-    "stand": merge(HUNCH, finger_curl(22, "L"), finger_curl(34, "R"),
-                   {"neck2": (-56, 14, 6), "shoulder_L": (-8, -3, 0), "shoulder_R": (-6, 2, 0),
-                    "elbow_L": (-12, 0, 0), "elbow_R": (-6, 0, 0), "upchest": (14, -3, 0),
-                    "hip_L": (-6, 0, 0), "hip_R": (-6, 0, 0), "knee_L": (12, 0, 0), "knee_R": (10, 0, 0),
-                    "ankle_L": (-5, 0, 0), "ankle_R": (-4, 0, 0)}),
-    # Under a ceiling: bent double, knees bent, neck folded, face lifted to keep looking at you.
-    "stoop": merge(finger_curl(26, "L"), finger_curl(30, "R"),
-                   {"spine1": (14, 0, 0), "spine2": (16, 0, 0), "chest": (16, 0, 0), "upchest": (14, 0, 0),
-                    "neck0": (16, 0, 0), "neck1": (4, 0, 0), "neck2": (-74, -10, 0),
+    # Upright: too tall, the card hung forward on the long neck, tilted. Rarely seen like this indoors.
+    "stand": merge(HUNCH, finger_curl(18, "L"), finger_curl(30, "R"),
+                   {"neck2": (-56, 16, 8), "shoulder_L": (-6, -3, 0), "shoulder_R": (-4, 2, 0),
+                    "elbow_L": (-10, 0, 0), "elbow_R": (-5, 0, 0), "upchest": (12, -3, 0),
+                    "hip_L": (-5, 0, 0), "hip_R": (-5, 0, 0), "knee_L": (10, 0, 0), "knee_R": (8, 0, 0),
+                    "ankle_L": (-4, 0, 0), "ankle_R": (-3, 0, 0)}),
+    # Under a ceiling: bent double, knees bent, neck folded, the card lifted to keep looking at you.
+    "stoop": merge(finger_curl(24, "L"), finger_curl(28, "R"),
+                   {"spine1": (12, 0, 0), "spine2": (14, 0, 0), "chest": (16, 0, 0), "upchest": (14, 0, 0),
+                    "neck0": (18, 0, 0), "neck1": (6, 0, 0), "neck2": (-78, -12, 0),
                     "hip_L": (-34, -4, 0), "hip_R": (-34, 4, 0), "knee_L": (58, 0, 0), "knee_R": (58, 0, 0),
                     "ankle_L": (-24, 0, 0), "ankle_R": (-24, 0, 0),
                     "shoulder_L": (-24, 0, 0), "shoulder_R": (-20, 0, 0), "elbow_L": (-14, 0, 0), "elbow_R": (-10, 0, 0),
-                    "root_shift": (0.0, 0.12, -0.20)}),
-    # Squatting, knees by its ears, arms hanging between them to the floor, face tilted up at you.
-    "crouch": merge(finger_curl(36, "L"), finger_curl(30, "R"),
+                    "root_shift": (0.0, 0.12, -0.22)}),
+    # Squatting, knees by its ears, arms hanging between them to the floor, the face tilted up at you.
+    "crouch": merge(finger_curl(34, "L"), finger_curl(28, "R"),
                     {"hip_L": (-118, -14, 0), "hip_R": (-118, 14, 0), "knee_L": (150, 0, 0), "knee_R": (150, 0, 0),
                      "ankle_L": (-30, 0, 0), "ankle_R": (-30, 0, 0),
                      "spine1": (22, 0, 0), "spine2": (16, 0, 0), "chest": (8, 0, 0),
-                     "neck0": (8, 0, 0), "neck2": (-64, 14, 0),
+                     "neck0": (10, 0, 0), "neck2": (-66, 16, 0),
                      "shoulder_L": (-8, 6, 0), "shoulder_R": (-6, -6, 0), "elbow_L": (-6, 0, 0),
-                     "root_shift": (0.0, 0.18, -0.86)}),
-    # On all fours, belly low, head raised and turned to look at you.
+                     "root_shift": (0.0, 0.18, -0.84)}),
+    # On all fours, spine bowed, the card raised and turned to look at you.
     "crawl_a": merge(finger_curl(-8, "L", 6), finger_curl(-8, "R", 6),
-                     {"root": (80, 0, 0), "root_pivot": (0.0, 0.0, 1.6), "root_shift": (0.0, 0.70, -1.08),
+                     {"root": (80, 0, 0), "root_pivot": (0.0, 0.0, 1.56), "root_shift": (0.0, 0.70, -1.10),
                       "hip_L": (-64, 0, 0), "hip_R": (-84, 0, 0), "knee_L": (84, 0, 0), "knee_R": (96, 0, 0),
                       "ankle_L": (-20, 0, 0), "ankle_R": (-20, 0, 0),
                       "shoulder_L": (-70, 0, 0), "shoulder_R": (-88, 0, 0), "elbow_L": (14, 0, 0), "elbow_R": (24, 0, 0),
                       "wrist_L": (46, 0, 0), "wrist_R": (50, 0, 0),
-                      "neck0": (-34, 0, 0), "neck1": (-26, 0, 0), "neck2": (-40, 0, 16)}),
+                      "neck0": (-34, 0, 0), "neck1": (-28, 0, 0), "neck2": (-38, 0, 16)}),
     "crawl_b": merge(finger_curl(-8, "L", 6), finger_curl(-8, "R", 6),
-                     {"root": (80, 0, 0), "root_pivot": (0.0, 0.0, 1.6), "root_shift": (0.0, 0.70, -1.08),
+                     {"root": (80, 0, 0), "root_pivot": (0.0, 0.0, 1.56), "root_shift": (0.0, 0.70, -1.10),
                       "hip_L": (-84, 0, 0), "hip_R": (-64, 0, 0), "knee_L": (96, 0, 0), "knee_R": (84, 0, 0),
                       "ankle_L": (-20, 0, 0), "ankle_R": (-20, 0, 0),
                       "shoulder_L": (-88, 0, 0), "shoulder_R": (-70, 0, 0), "elbow_L": (24, 0, 0), "elbow_R": (14, 0, 0),
                       "wrist_L": (50, 0, 0), "wrist_R": (46, 0, 0),
-                      "neck0": (-34, 0, 0), "neck1": (-26, 0, 0), "neck2": (-40, 0, -16)}),
+                      "neck0": (-34, 0, 0), "neck1": (-28, 0, 0), "neck2": (-38, 0, -16)}),
     # Leaning out from behind a wall on its right, the long fingers of its right hand curled round
     # the edge at head height.
     "peek_right": merge(finger_curl(64, "R"), finger_curl(20, "L"),
-                        {"spine1": (4, -12, 0), "spine2": (4, -14, 0), "chest": (4, -12, 0), "upchest": (2, -8, 0),
-                         "neck0": (14, -10, 0), "neck1": (6, 0, 0), "neck2": (-44, -18, 0),
-                         "hip_L": (0, 6, 0), "hip_R": (0, 10, 0),
-                         "shoulder_R": (-40, 50, 0), "elbow_R": (-96, 0, 0), "wrist_R": (0, 30, 0),
+                        {"spine1": (6, -6, 0), "spine2": (6, -7, 0), "chest": (6, -6, 0), "upchest": (4, -4, 0),
+                         "neck0": (32, -4, 0), "neck1": (18, 0, 0), "neck2": (-70, -24, 0),
+                         "hip_L": (-16, 3, 0), "hip_R": (-14, 5, 0), "knee_L": (34, 0, 0), "knee_R": (30, 0, 0),
+                         "ankle_L": (-18, 0, 0), "ankle_R": (-16, 0, 0),
+                         "shoulder_R": (-34, 34, 0), "elbow_R": (-108, 0, 0), "wrist_R": (0, 30, 0),
                          "shoulder_L": (8, 0, 0)}),
     "peek_left": merge(finger_curl(64, "L"), finger_curl(20, "R"),
-                       {"spine1": (4, 12, 0), "spine2": (4, 14, 0), "chest": (4, 12, 0), "upchest": (2, 8, 0),
-                        "neck0": (14, 10, 0), "neck1": (6, 0, 0), "neck2": (-44, 18, 0),
-                        "hip_R": (0, -6, 0), "hip_L": (0, -10, 0),
-                        "shoulder_L": (-40, -50, 0), "elbow_L": (-96, 0, 0), "wrist_L": (0, -30, 0),
+                       {"spine1": (6, 6, 0), "spine2": (6, 7, 0), "chest": (6, 6, 0), "upchest": (4, 4, 0),
+                        "neck0": (32, 4, 0), "neck1": (18, 0, 0), "neck2": (-70, 24, 0),
+                        "hip_R": (-16, -3, 0), "hip_L": (-14, -5, 0), "knee_R": (34, 0, 0), "knee_L": (30, 0, 0),
+                        "ankle_R": (-18, 0, 0), "ankle_L": (-16, 0, 0),
+                        "shoulder_L": (-34, -34, 0), "elbow_L": (-108, 0, 0), "wrist_L": (0, -30, 0),
                         "shoulder_R": (8, 0, 0)}),
     # One arm out toward you, fingers loose.
-    "reach": merge(HUNCH, finger_curl(6, "L", 8), finger_curl(30, "R"),
+    "reach": merge(HUNCH, finger_curl(4, "L", 8), finger_curl(28, "R"),
                    {"chest": (14, 0, 0), "shoulder_L": (-84, 4, 0), "elbow_L": (-12, 0, 0), "wrist_L": (-8, 0, 0),
-                    "shoulder_R": (6, 2, 0), "neck2": (-44, -8, 0)}),
-    # Bent at the waist over a bed, its face hanging just above where yours is.
-    "bedside": merge(finger_curl(30, "L"), finger_curl(30, "R"),
+                    "shoulder_R": (6, 2, 0), "neck2": (-46, -10, 0), "jaw": 6}),
+    # Bent at the waist over a bed, the card hanging face-down just above where your face is.
+    "bedside": merge(finger_curl(28, "L"), finger_curl(28, "R"),
                      {"spine1": (30, 0, 0), "spine2": (24, 0, 0), "chest": (18, 0, 0), "upchest": (10, 0, 0),
-                      "neck0": (8, 0, 0), "neck2": (2, 8, 0),
+                      "neck0": (8, 0, 0), "neck2": (2, 10, 0),
                       "shoulder_L": (-20, 0, 0), "shoulder_R": (-24, 0, 0), "elbow_L": (-6, 0, 0), "elbow_R": (-6, 0, 0),
                       "hip_L": (-6, 0, 0), "hip_R": (-6, 0, 0)}),
-    # The attack: arms wide, everything forward, the jaw open far past where a jaw stops.
+    # The attack: arms wide, everything forward, and the card coming apart at the mouth.
     "lunge": merge(finger_curl(-14, "L", 10), finger_curl(-14, "R", 10),
-                   {"spine1": (12, 0, 0), "spine2": (10, 0, 0), "chest": (8, 0, 0), "neck0": (18, 0, 0), "neck2": (-62, 0, 0),
+                   {"spine1": (12, 0, 0), "spine2": (10, 0, 0), "chest": (8, 0, 0), "neck0": (18, 0, 0), "neck2": (-60, 0, 0),
                     "shoulder_L": (-80, -40, 0), "shoulder_R": (-80, 40, 0), "elbow_L": (-24, 0, 0), "elbow_R": (-24, 0, 0),
-                    "hip_L": (-24, 0, 0), "knee_L": (34, 0, 0), "hip_R": (12, 0, 0), "jaw": 52}),
-    # Flat on its back on the floor beside your bed, head turned toward you.
-    "lie": merge(finger_curl(14, "L"), finger_curl(18, "R"),
-                 {"root": (-90, 0, 0), "root_pivot": (0.0, 0.0, 0.0), "root_shift": (0.0, 0.0, 0.11),
+                    "hip_L": (-24, 0, 0), "knee_L": (34, 0, 0), "hip_R": (12, 0, 0), "jaw": 58, "jaw_drop": 0.035}),
+    # Flat on its back, the card turned toward you.
+    "lie": merge(finger_curl(12, "L"), finger_curl(16, "R"),
+                 {"root": (-90, 0, 0), "root_pivot": (0.0, 0.0, 0.0), "root_shift": (0.0, 0.0, 0.08),
                   "neck2": (-6, 0, 70), "shoulder_L": (0, -8, 0), "shoulder_R": (0, 8, 0)}),
     # Stop-motion walking frames.
-    "walk_a": merge(HUNCH, finger_curl(24, "L"), finger_curl(28, "R"),
-                    {"chest": (14, 0, 0), "hip_L": (-28, 0, 0), "knee_L": (34, 0, 0), "hip_R": (18, 0, 0), "knee_R": (22, 0, 0),
-                     "ankle_R": (-12, 0, 0), "shoulder_L": (16, 0, 0), "shoulder_R": (-14, 0, 0), "root_shift": (0.0, 0.0, -0.07)}),
-    "walk_b": merge(HUNCH, finger_curl(24, "L"), finger_curl(28, "R"),
-                    {"chest": (14, 0, 0), "hip_R": (-28, 0, 0), "knee_R": (34, 0, 0), "hip_L": (18, 0, 0), "knee_L": (22, 0, 0),
-                     "ankle_L": (-12, 0, 0), "shoulder_R": (16, 0, 0), "shoulder_L": (-14, 0, 0), "root_shift": (0.0, 0.0, -0.07)}),
+    "walk_a": merge(HUNCH, finger_curl(22, "L"), finger_curl(26, "R"),
+                    {"spine2": (14, 0, 0), "chest": (22, 0, 0), "neck2": (-70, 0, 0), "hip_L": (-34, 0, 0), "knee_L": (44, 0, 0),
+                     "hip_R": (10, 0, 0), "knee_R": (30, 0, 0), "ankle_R": (-12, 0, 0), "shoulder_L": (10, 0, 0),
+                     "shoulder_R": (-20, 0, 0), "root_shift": (0.0, 0.0, -0.11)}),
+    "walk_b": merge(HUNCH, finger_curl(22, "L"), finger_curl(26, "R"),
+                    {"spine2": (14, 0, 0), "chest": (22, 0, 0), "neck2": (-70, 0, 0), "hip_R": (-34, 0, 0), "knee_R": (44, 0, 0),
+                     "hip_L": (10, 0, 0), "knee_L": (30, 0, 0), "ankle_L": (-12, 0, 0), "shoulder_R": (10, 0, 0),
+                     "shoulder_L": (-20, 0, 0), "root_shift": (0.0, 0.0, -0.11)}),
 }
 
 
@@ -1159,20 +1273,24 @@ def main():
     tex_size = 512 if args.quick else 1024
     unwrap([body], 0.003)
     unwrap([head_all], 0.004)
-    make_texture("creature_body", body, {"body_skin": PART_SKIN}, tex_size, args.quick,
-                 lambda p, n, a, pt: paint_skin(p, n, a), 0.10)
-    make_texture("creature_head", head_all, {name: part for name, part, _ in head_parts}, tex_size, args.quick,
-                 paint_head, 0.035)
+    make_texture("creature_body", body, {"body_skin": PART_SKIN}, tex_size, args.quick, paint_body, 0.08)
+    make_texture("creature_head", head_all, {name: part for name, part, _ in head_parts}, tex_size, args.quick, paint_head, 0.03)
 
     print("decimating")
     body = decimate(body, 0.24)
+    # Pins go in after decimation (it would eat them). Their UVs land on the body's black.
+    pins = body_pins(joints)
+    pins.data.uv_layers.new()
+    body = join([body, pins], "body")
     set_part_attribute(body, PART_SKIN)
     pieces = separate_by_material(head_all)
     groups_of = {"head": [], "jaw": []}
     for name, part, group in head_parts:
         obj = pieces[name]
         if part == PART_SKIN:
-            obj = decimate(obj, 0.34 if group == "head" else 0.42)
+            obj = decimate(obj, 0.16 if group == "head" else 0.22)
+        elif part == PART_MOUTH:
+            obj = decimate(obj, 0.1)
         set_part_attribute(obj, part)
         groups_of[group].append(obj)
     head = join(groups_of["head"], "head")
@@ -1196,9 +1314,9 @@ def main():
         groups.append(g)
 
     by_name = {j.name: j for j in joints}
-    jaw_hinge = HEAD_CENTER + JAW_HINGE_UNIT * HEAD_SCALE
+    jaw_hinge = HEAD_CENTER + JAW_HINGE_LOCAL
     eyes_rest = eye_centers()
-    mouth_rest = face_point(0.0, mouth_line(0.0), inset=0.95)
+    mouth_rest = card_warp(MOUTH_LOCAL)[0] + HEAD_CENTER
     exported = []
     pivots_json = {}
     os.makedirs(MODEL_DIR, exist_ok=True)
@@ -1214,7 +1332,11 @@ def main():
         head_m = mats["neck2"]
         J = np.eye(4)
         if pose.get("jaw"):
-            J = about(jaw_hinge, rot("x", pose["jaw"]))  # + opens: the chin swings down and back
+            J = about(jaw_hinge, rot("x", pose["jaw"]))  # + opens: the lower card swings down and back
+        if pose.get("jaw_drop"):
+            S = np.eye(4)
+            S[2, 3] = -pose["jaw_drop"]
+            J = S @ J
         rigid = {"head": matrix_to_mc(head_m), "jaw": matrix_to_mc(head_m @ J)}
         pose_groups = []
         obj_groups = []
@@ -1244,7 +1366,9 @@ def main():
             "eyeRight": to_mc(transform_points(head_m, eyes_rest[1]))[0],
             "mouth": to_mc(transform_points(head_m @ J, mouth_rest))[0],
         }
-        height = float(np.vstack(all_pos)[:, 1].max())
+        # Height of the solid creature (pins and strings may poke into a ceiling; the rest may not).
+        solid = [pos[(g["part"] != PART_NEEDLE) & (g["part"] != PART_STRAND)] for pos, g in zip(all_pos, groups)]
+        height = float(np.vstack([q for q in solid if len(q)])[:, 1].max())
         flat = np.concatenate([piv[k] for k in PIVOT_NAMES] + [np.array([height])])
         exported.append({"name": pose_name, "pivots": flat, "groups": pose_groups})
         pivots_json[pose_name] = {k: np.round(v, 4).tolist() for k, v in piv.items()}

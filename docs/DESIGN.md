@@ -698,3 +698,61 @@ yellowed teeth). Decimated, rigged with bone-heat weights, posed with dual-quate
 and exported as one gzipped binary (`models/creature/creature.bin.gz`; `--obj` also writes OBJs
 for editing elsewhere). A replacement mesh (sculpted by hand, or generated with Meshy, Tripo or
 Hunyuan3D) can be dropped into the same pipeline as long as it is rigged to the same skeleton.
+
+## Pass 10: The card (a new creature, from Doctor Nowhere's work)
+
+### Why
+
+Owner feedback on Pass 9's model: it needs a new model, uniquely shaped, taking heavy
+inspiration from Doctor Nowhere, with his art as direct reference. The grinning skull-mask on a
+pale starved body read as generic: a "creepy humanoid", not a picture you remember.
+
+### References (his originals only, studied, not copied)
+
+The Boiled One (the broadcast still, and the full-body still of it standing in a field over a
+house); the Locust / Organator from *T.O.E.*; Longboy Bonsai; *where_did_life_go*; the square card
+face from *paper souls*; the bald bust with its eyes in the wrong place; the heart hung in a
+wallpapered corner.
+
+What they share:
+
+- **Bodies that are barely there.** Flat black, silhouette-like, impossibly thin. The Locust's
+  waist is not a waist: between ribs and pelvis there is only a bare, jointed spine. Arms like
+  sticks, hanging past the knees.
+- **Real faces on wrong shapes.** A realistic nose and eyes on a flat square card; tiny eyes
+  stuck to the side of a smooth bald head; a small, ordinary human face in a mass of black tubes.
+  The features are photographic; what they are attached to is not.
+- **Lines.** Needles radiating from the Boiled One's head and standing out of its body; tubes and
+  hair around the Locust's face; pale strings stretched from a jaw to a chest; veins hanging a
+  heart on a wall.
+- **The jaw.** Mouths that open far past where a mouth stops, the face dragged down with them.
+- **Where they are.** Wallpapered corners, a field behind a house, a doorway: ordinary rooms,
+  photographed.
+
+### The creature now
+
+- **Body:** flat black, stick limbs, arms past the knees, fingers almost half a block long with
+  knotted joints. No belly: the waist is a bare knotted spine with spurs off the back; the ribs
+  flare out above it over nothing. Long pins driven through a shoulder, the back, an arm, a
+  thigh, a neck. A long, thin neck.
+- **Head: a card.** A pale slab about 0.27 by 0.49 blocks and only four centimetres thick,
+  slightly bent, wider at the top, leaning forward over you. Old, stained, handled. A real face is
+  pressed into it, like a photograph of a face: a long nose, sunken staring eyes with small pupils
+  (one set lower than the other, one not quite looking where the other does), no eyebrows, thin
+  lips barely apart. Above the face, far too much blank card.
+- **Pins** driven through the card and out of its edges like a halo; two straight through the
+  face, one through the forehead, one through a cheek.
+- **Strings:** pale, wet, too many to be hair, hanging from the card's lower edge down over the
+  chest.
+- **The mouth:** the card is cut straight across at the lips. The lower part hangs on a hinge at
+  the back; when it opens it drops away into a dark wet slot with two rows of small teeth, and in
+  the attack it slides down further than any jaw.
+
+**Not taken:** any of his actual creatures: no boiled red head, no tube-haired face, no Longboy.
+
+### Why it works in the corner of your eye
+
+In a dark room the black body vanishes; what is left is a pale rectangle at head height, three
+blocks up, with a face on it, and two wet points of light. In daylight it is a black stick figure
+with a white card for a head and a halo of pins: a silhouette nothing in Minecraft has. Close
+up, the face is the worst part: it is an ordinary face, and it is on a card.

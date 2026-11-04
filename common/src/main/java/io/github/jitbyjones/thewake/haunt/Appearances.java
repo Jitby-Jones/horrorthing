@@ -36,7 +36,7 @@ public final class Appearances {
             return wanted;
         }
         if (room == 3) {
-            return wanted == CreaturePose.LUNGE ? CreaturePose.REACH : random.nextFloat() < 0.5F ? CreaturePose.STOOP : wanted;
+            return wanted == CreaturePose.LUNGE ? CreaturePose.REACH : CreaturePose.STOOP;
         }
         return random.nextBoolean() ? CreaturePose.CRAWL_A : CreaturePose.CRAWL_B;
     }

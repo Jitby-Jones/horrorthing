@@ -77,9 +77,9 @@ public final class DemoClient {
             if (pausedAt < 0) {
                 pausedAt = now;
                 mc.pauseGame(false);
-            } else if (now - pausedAt > 7000L && TAKEN.add("12_pause_tape")) {
+            } else if (now - pausedAt > 7000L && (now / 600L) % 2L == 0L && TAKEN.add("12_pause_tape")) {
                 shot(mc, "12_pause_tape");
-            } else if (now - pausedAt > 8000L) {
+            } else if (now - pausedAt > 8400L) {
                 mc.setScreen(null);
                 pauseDone = true;
             }

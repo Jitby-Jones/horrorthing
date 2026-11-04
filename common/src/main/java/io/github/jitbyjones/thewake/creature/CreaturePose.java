@@ -5,23 +5,23 @@ import net.minecraft.util.Mth;
 
 /**
  * The creature's poses, one per pose in the exported model (tools/creature/build_creature.py).
- * Heights are at scale 1, in blocks, and decide where it fits: under a three-block ceiling it
- * cannot stand, so it stoops; through a two-block gap it crawls.
+ * Heights are at scale 1, in blocks, without the pins and strings (those may touch a ceiling),
+ * and decide where it fits: under a three-block ceiling it stoops; through two blocks it crawls.
  */
 public enum CreaturePose {
-    STAND(2.95F),
-    STOOP(2.66F),
-    CROUCH(2.15F),
-    CRAWL_A(1.40F),
-    CRAWL_B(1.40F),
-    PEEK_RIGHT(2.88F),
-    PEEK_LEFT(2.88F),
-    REACH(2.88F),
-    BEDSIDE(2.28F),
-    LUNGE(3.10F),
-    LIE(0.40F),
-    WALK_A(2.86F),
-    WALK_B(2.86F);
+    STAND(3.00F),
+    STOOP(2.70F),
+    CROUCH(2.20F),
+    CRAWL_A(1.48F),
+    CRAWL_B(1.48F),
+    PEEK_RIGHT(3.00F),
+    PEEK_LEFT(3.00F),
+    REACH(2.86F),
+    BEDSIDE(2.42F),
+    LUNGE(3.16F),
+    LIE(0.34F),
+    WALK_A(2.64F),
+    WALK_B(2.64F);
 
     private static final CreaturePose[] VALUES = values();
 

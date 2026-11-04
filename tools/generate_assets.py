@@ -314,15 +314,17 @@ def ribbon_texture(size):
 
 
 def glint_texture(size):
-    """A soft pinpoint: something wet at the bottom of a socket."""
+    """A soft pinpoint: something wet at the bottom of a socket. Drawn additively (black adds
+    nothing), so the falloff is in the colour, not just the alpha."""
     img = Image.new("RGBA", (size, size))
     px = img.load()
     c = (size - 1) / 2.0
     for y in range(size):
         for x in range(size):
             d = math.hypot(x - c, y - c) / c
-            a = max(0.0, 1.0 - d) ** 2.2
-            px[x, y] = (255, 255, 250, int(255 * a))
+            a = max(0.0, 1.0 - d) ** 3.0
+            v = int(255 * a)
+            px[x, y] = (v, v, int(v * 0.97), v)
     return img
 
 

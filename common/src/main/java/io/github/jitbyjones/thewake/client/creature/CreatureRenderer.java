@@ -232,7 +232,8 @@ public final class CreatureRenderer {
         Matrix4f inverse = new Matrix4f(rot).invert();
         Vector3f right = inverse.transformDirection(new Vector3f(1.0F, 0.0F, 0.0F));
         Vector3f up = inverse.transformDirection(new Vector3f(0.0F, 1.0F, 0.0F));
-        float size = 0.010F * (float) Math.sqrt(Math.max(1.0F, distance / 3.0F));
+        // A pinpoint at any distance: shrink it up close, grow it a little far away.
+        float size = Mth.clamp(0.0045F * (float) Math.sqrt(Math.max(0.05F, distance)), 0.0025F, 0.03F);
         VertexConsumer consumer = buffers.getBuffer(RenderType.eyes(GLINT));
         for (int eyeOffset : new int[] {CreatureModel.EYE_LEFT, CreatureModel.EYE_RIGHT}) {
             Vector3f c = toWorld.transformPosition(pose.pivot(eyeOffset));

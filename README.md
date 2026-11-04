@@ -34,7 +34,8 @@ Headphones help.
   short distorted scream, at most once per in-game day. The scream has its own volume setting
   (`screamVolume`), and the tape tear can be turned off with everything else visual
   (`tapeEffect`).
-- A realistic, emaciated humanoid with a skull-like grinning face. No gore.
+- A tall, flat-black, emaciated figure whose head is a stained card with a real human face
+  pressed into it, pins driven through it. No gore.
 - The picture is made to look like worn videotape at times: grain, scanlines, rolling tracking
   noise. No strobing.
 - It can damage you (default six hearts, through armour). In hardcore it leaves you at half a
@@ -132,16 +133,20 @@ renders of every pose. The sounds and small textures are synthesized by
 <details>
 <summary><b>Screenshots (spoilers)</b></summary>
 
-Captured by the scripted demo on Fabric.
+![The creature: a black stick figure with a stained card for a head, a face pressed into the card, pins through it, strings hanging, and the card split open at the mouth](docs/media/creature.jpg)
+
+*The model, rendered in Blender by `tools/creature/build_creature.py`.*
+
+Captured in game by the scripted demo:
 
 | | |
 |---|---|
-| ![Daylight: a tall, emaciated figure standing at the left edge of the view](docs/media/corner-of-eye.jpg) | ![At the foot of a bed in a dark wooden room, its head against the ceiling, grinning](docs/media/foot-of-bed.jpg) |
-| *At the edge of your view. Look straight at it and it is still.* | *Act III mornings: at the foot of the bed.* |
-| ![The pause menu, a PAUSE mark in the corner, the world behind it blurred and noisy](docs/media/pause-tape.jpg) | ![Its face filling the screen, black sockets, torn by tape damage](docs/media/attack.jpg) |
-| *The pause menu is a paused tape.* | *What happens when it reaches you.* |
-| ![It lies in the bed, too long for it, its feet past the end; static on the floor](docs/media/the-stopped.jpg) | ![The creature behind the inventory screen](docs/media/inventory.jpg) |
-| *The Stopped: it is in your bed.* | *While you sort your inventory.* |
+| ![A black stick figure with a white card for a head, enormous and far away on the horizon](docs/media/giant.jpg) | ![Daylight: the figure standing at the left edge of the view, pins radiating from its card](docs/media/corner-of-eye.jpg) |
+| *Act II: far off, four times its size, facing your way.* | *At the edge of your view. Look straight at it and it is still.* |
+| ![A dark wooden room: the black body invisible, the pale card face floating at the ceiling](docs/media/foot-of-bed.jpg) | ![The inventory screen; behind it, the creature's black legs and long arm at the edge of the screen](docs/media/inventory.jpg) |
+| *Mornings: at the foot of the bed. In the dark you only see the card.* | *While you sort your inventory.* |
+| ![The pause menu over a blurred, noisy picture, PAUSE in the corner, and the creature sharp at the side](docs/media/pause-tape.jpg) | ![The card face filling the screen, the mouth split open, torn by tape damage](docs/media/attack.jpg) |
+| *The pause menu is a paused tape. It is still moving.* | *What happens when it reaches you.* |
 
 </details>
 
@@ -149,9 +154,10 @@ Captured by the scripted demo on Fabric.
 <summary><b>How it works (spoilers)</b></summary>
 
 When you sleep, Minecraft deletes the night. When you pause, the world stops. When you open a
-chest, you stop looking. **The Wake is whatever uses that time.** It is a tall, starved,
-grinning thing that never moves while you watch the world: only while you are in a menu, asleep,
-or away from the keyboard. Every step it takes is a cut, like stop-motion.
+chest, you stop looking. **The Wake is whatever uses that time.** It is a tall black thing with a
+card for a head and a face on the card, and it never moves while you watch the world: only while
+you are in a menu, asleep, or away from the keyboard. Every step it takes is a cut, like
+stop-motion.
 
 - **Act I.** Small chores happen overnight, but only after nights in a familiar bed. You wake up
   hungrier.
