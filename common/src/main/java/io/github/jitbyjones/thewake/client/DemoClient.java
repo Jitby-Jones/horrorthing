@@ -29,8 +29,10 @@ public final class DemoClient {
             {610, "10_inventory_hunt_b"},
             {690, "10c_inventory_hunt_c"},
             {706, "11_frozen_after_menu"},
-            {765, "13_attack_a"},
-            {769, "14_attack_b"},
+            {765, "13_attack_face"},
+            {770, "14_attack_blink"},
+            {777, "14b_attack_jaw"},
+            {784, "14c_attack_jaw_down"},
             {910, "15_stopped_in_bed"},
             {1100, "16_stopped_walking"},
             {1165, "17_stopped_close"},
@@ -53,7 +55,12 @@ public final class DemoClient {
             return;
         }
         int t = server.getTickCount() - DemoScript.startTick;
+        boolean loading = mc.screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen
+                || mc.screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen;
         for (Object[] shot : SHOTS) {
+            if (loading) {
+                break;
+            }
             String name = (String) shot[1];
             if (t >= (Integer) shot[0] && TAKEN.add(name)) {
                 shot(mc, name);

@@ -142,15 +142,29 @@ public final class DemoScript {
     /** Act II: far off, four times its size. */
     private static void giant(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        BlockPos column = origin.offset(10, 0, -40);
-        // Standing in the canopy: head and shoulders above the trees.
-        BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, column);
-        Vec3 at = Vec3.atBottomCenterOf(top);
+        // Somewhere out there its head and shoulders clear the hills and the trees, seen from home.
+        Vec3 eyeAtHome = Vec3.atBottomCenterOf(origin).add(0.0, 1.62, 0.0);
+        Vec3 at = null;
+        for (int dz = -40; dz >= -70 && at == null; dz -= 6) {
+            for (int dx = 10; dx >= -20 && at == null; dx -= 6) {
+                BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, origin.offset(dx, 0, dz));
+                Vec3 c = Vec3.atBottomCenterOf(top);
+                Vec3 shoulders = c.add(0.0, CreaturePose.STAND.height * Appearances.GIANT_SCALE * 0.78, 0.0);
+                net.minecraft.world.phys.BlockHitResult hit = level.clip(new net.minecraft.world.level.ClipContext(eyeAtHome, shoulders,
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, player));
+                if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+                    at = c;
+                }
+            }
+        }
+        if (at == null) {
+            at = Vec3.atBottomCenterOf(level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, origin.offset(10, 0, -40)));
+        }
         Phantom giant = Phantoms.create(player, at, Spots.yawTowards(at, player.position()), Phantom.Mode.STILL, CreaturePose.STAND)
                 .setScale(Appearances.GIANT_SCALE).setTouch(0.0, false);
         TheWake.LOG.info("[demo] giant {} at {} (player at {})", giant.id(), at, player.position());
         Vec3 eye = player.position().add(0.0, 1.62, 0.0);
-        Vec3 head = at.add(0.0, 10.0, 0.0);
+        Vec3 head = at.add(0.0, CreaturePose.STAND.height * Appearances.GIANT_SCALE * 0.8, 0.0);
         float pitch = (float) -Math.toDegrees(Math.atan2(head.y - eye.y, head.subtract(eye).horizontalDistance()));
         player.connection.teleport(origin.getX() + 0.5, origin.getY(), origin.getZ() + 0.5, Spots.yawTowards(player.position(), at) - 25.0F,
                 pitch * 0.6F);
@@ -248,6 +262,7 @@ public final class DemoScript {
         HauntState state = Haunt.state(player);
         Haunt.force(player, state, Stage.HUNT.threshold + 0.02F);
         state.setLastAttackDay(-1L);
+        state.setNextAttackTick(0L);
         Phantom p = Hunter.creature(player);
         if (p == null) {
             BlockPos spot = Spots.behind(player, 2.0, 3.0, 20);

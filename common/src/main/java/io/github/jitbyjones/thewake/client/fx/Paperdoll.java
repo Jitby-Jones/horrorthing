@@ -50,8 +50,10 @@ public final class Paperdoll {
             side = 1.0F;
         }
         CreaturePose poseId = closeness > 0.6F ? CreaturePose.REACH : CreaturePose.STAND;
-        CreatureModel.Pose pose = model.pose(poseId);
-        Vector3f head = pose.pivot(CreatureModel.HEAD);
+        Vector3f head = CreatureRenderer.attachment(poseId, 0, "head");
+        if (head == null) {
+            return;
+        }
         float cx = (x1 + x2) / 2.0F;
         float cy = (y1 + y2) / 2.0F;
         float pixels = scale * (0.9F + 0.7F * closeness);
@@ -68,7 +70,7 @@ public final class Paperdoll {
         Vec3 relative = new Vec3(-head.x, -head.y, -head.z);
         float jaw = closeness > 0.8F ? 8.0F : 0.0F;
         CreatureRenderer.Head h = new CreatureRenderer.Head(side * 12.0F, -8.0F, side * 14.0F, jaw);
-        CreatureRenderer.draw(poseId, view, RenderSystem.getProjectionMatrix(), relative, 180.0F, 1.0F, h,
+        CreatureRenderer.draw(poseId, 0, view, RenderSystem.getProjectionMatrix(), relative, 180.0F, 1.0F, h,
                 CreatureRenderer.lightAt(behind), null, Phantom.FLAG_NO_TWITCH);
         RenderSystem.clear(256, Minecraft.ON_OSX);
         graphics.disableScissor();

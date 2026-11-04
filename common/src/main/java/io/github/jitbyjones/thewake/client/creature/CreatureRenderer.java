@@ -2,17 +2,13 @@ package io.github.jitbyjones.thewake.client.creature;
 
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.client.ClientPhantom;
 import io.github.jitbyjones.thewake.creature.CreaturePose;
 import io.github.jitbyjones.thewake.phantom.Phantom;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -33,9 +29,10 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
- * Draws the creature. Each pose's body, and the rigid head and jaw, live in static vertex buffers
- * (built on first use, rebuilt if the light where it stands changes); per frame only matrices
- * change. The head turns about the neck and the jaw opens about its hinge on top of any pose.
+ * Draws the creature from its skeleton. Every frame the pose is rebuilt from a clip frame plus
+ * procedural layers (the head turning, the jaw, twitches in the corner of your eye); the body is
+ * skinned on the CPU only when that pose actually changed, which in stop-motion is a few times a
+ * second at most. Rigid parts ride on their joints by matrix.
  *
  * <p>Uses vanilla's entity shader and lightmap, so it is exactly as dark as the corner it stands
  * in, and shader packs see an ordinary entity draw.
@@ -44,21 +41,60 @@ public final class CreatureRenderer {
     public static final ResourceLocation GLINT = TheWake.id("textures/entity/creature_glint.png");
     private static final Vector3f LIGHT_0 = new Vector3f(0.2F, 1.0F, -0.7F).normalize();
     private static final Vector3f LIGHT_1 = new Vector3f(-0.2F, 1.0F, 0.7F).normalize();
-    private static final int MAX_BUFFERS = 28;
+    private static final Vector3f UP = new Vector3f(0.0F, 1.0F, 0.0F);
+    private static final int MAX_SKINNED = 6;
 
     @Nullable
     private static CreatureModel model;
     private static boolean failed;
-    /** Keyed by group, pose (or -1 for rigid groups) and packed light. Least recently used first. */
-    private static final LinkedHashMap<Long, VertexBuffer> BUFFERS = new LinkedHashMap<>(32, 0.75F, true);
+    @Nullable
+    private static CreatureSkeleton skeleton;
+    @Nullable
+    private static CreatureSkeleton probe;
+    private static Joints joints;
+    /** Skinned bodies by pose fingerprint and light. Least recently used first. */
+    private static final LinkedHashMap<Long, VertexBuffer> SKINNED = new LinkedHashMap<>(8, 0.75F, true);
+    /** Rigid parts by group and light. */
+    private static final Map<Long, VertexBuffer> RIGID = new HashMap<>();
 
     private CreatureRenderer() {}
+
+    /** Joints the procedural layers need, looked up once by name. */
+    private record Joints(int[] neck, int head, int jaw, int shoulderL, int shoulderR, int[] fingersL, int[] fingersR,
+            int eyeJointL, int eyeJointR, int lidL, int lidR,
+            CreatureModel.Attachment headCentre, CreatureModel.Attachment right, CreatureModel.Attachment forward,
+            CreatureModel.Attachment up, CreatureModel.Attachment eyeL, CreatureModel.Attachment eyeR) {
+        static Joints of(CreatureModel m) {
+            int[] neck = java.util.stream.Stream.of("neck0", "neck1", "neck2").mapToInt(m::joint).filter(j -> j >= 0).toArray();
+            int head = -1;
+            int jaw = -1;
+            for (CreatureModel.Group g : m.groups) {
+                if (g.rigid && "head".equals(g.name)) {
+                    head = g.joint;
+                } else if (g.rigid && "jaw".equals(g.name)) {
+                    jaw = g.joint;
+                }
+            }
+            return new Joints(neck, head, jaw, m.joint("shoulder_L"), m.joint("shoulder_R"), fingers(m, "L"), fingers(m, "R"),
+                    m.joint("eye_L"), m.joint("eye_R"), m.joint("lid_L"), m.joint("lid_R"),
+                    m.attachment("head"), m.attachment("headRight"), m.attachment("headForward"), m.attachment("headUp"),
+                    m.attachment("eyeLeft"), m.attachment("eyeRight"));
+        }
+
+        private static int[] fingers(CreatureModel m, String side) {
+            return java.util.stream.IntStream.range(0, m.jointCount())
+                    .filter(j -> m.jointNames[j].matches("f\\dk[123]_" + side)).toArray();
+        }
+    }
 
     @Nullable
     public static CreatureModel model() {
         if (model == null && !failed) {
             try {
                 model = CreatureModel.load(Minecraft.getInstance().getResourceManager());
+                skeleton = new CreatureSkeleton(model);
+                probe = new CreatureSkeleton(model);
+                joints = Joints.of(model);
             } catch (Exception e) {
                 failed = true;
                 TheWake.LOG.error("Could not load the creature model", e);
@@ -70,11 +106,13 @@ public final class CreatureRenderer {
     /** Resource reload: drop the mesh and every buffer; they are rebuilt on demand. */
     public static void invalidate() {
         RenderSystem.assertOnRenderThread();
-        for (VertexBuffer buffer : BUFFERS.values()) {
-            buffer.close();
-        }
-        BUFFERS.clear();
+        SKINNED.values().forEach(VertexBuffer::close);
+        SKINNED.clear();
+        RIGID.values().forEach(VertexBuffer::close);
+        RIGID.clear();
         model = null;
+        skeleton = null;
+        probe = null;
         failed = false;
     }
 
@@ -87,15 +125,26 @@ public final class CreatureRenderer {
         BlockPos head = BlockPos.containing(p.pos.x, p.pos.y + Math.min(p.height() * 0.85, p.height() - 0.2), p.pos.z);
         int atHead = LevelRenderer.getLightColor(mc.level, head);
         int atBody = LevelRenderer.getLightColor(mc.level, BlockPos.containing(p.pos.x, p.pos.y + 0.5, p.pos.z));
-        // Inside a wall the head reads as dark; take the brighter of the two.
         int block = Math.max(LightTexture.block(atHead), LightTexture.block(atBody));
         int sky = Math.max(LightTexture.sky(atHead), LightTexture.sky(atBody));
         return LightTexture.pack(block, sky);
     }
 
-    /** Head and jaw offsets for this frame, combining the server's and the client's own. */
-    public record Head(float yaw, float pitch, float roll, float jaw) {
-        public static final Head NONE = new Head(0.0F, 0.0F, 0.0F, 0.0F);
+    /**
+     * Procedural offsets for this frame on top of the clip: the head (degrees, relative to the
+     * pose), the jaw, a curl of the fingers and a hitch of the shoulders.
+     */
+    public record Head(float yaw, float pitch, float roll, float jaw, float fingers, float shrug, float lids, float eyesOnYou,
+            float eyesApart) {
+        public static final Head NONE = new Head(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.2F, 1.0F, 0.0F);
+
+        public Head(float yaw, float pitch, float roll, float jaw) {
+            this(yaw, pitch, roll, jaw, 0.0F, 0.0F, 0.2F, 1.0F, 0.0F);
+        }
+
+        public Head withLids(float closed) {
+            return new Head(yaw, pitch, roll, jaw, fingers, shrug, closed, eyesOnYou, eyesApart);
+        }
 
         public static Head of(ClientPhantom p, float partial) {
             float yaw = p.lerpHeadYaw(partial);
@@ -106,30 +155,58 @@ public final class CreatureRenderer {
                 yaw = g.lookYaw;
                 pitch = g.lookPitch;
             }
-            return new Head(yaw + g.twitchYaw, pitch + g.twitchPitch, g.twitchRoll, jaw + g.twitchJaw);
+            return new Head(yaw + g.twitchYaw, pitch + g.twitchPitch, g.twitchRoll, jaw + g.twitchJaw, g.twitchFingers, g.twitchShrug,
+                    g.lids, g.eyesOnYou, g.eyesApart);
         }
+    }
+
+    public static void render(ClientPhantom p, Matrix4f view, Matrix4f projection, Vec3 relative, float partial, int light,
+            @Nullable MultiBufferSource.BufferSource glints) {
+        draw(p.pose, p.frame, view, projection, relative, p.yaw, p.scale, Head.of(p, partial), light, glints, p.flags);
     }
 
     /**
-     * Draws one creature. {@code view} is the camera's model-view (rotation) matrix; {@code relative}
-     * is its position minus the camera's.
+     * Where an attachment ("head", "eyeLeft", "headForward"...) is in model space for a pose and
+     * frame, before any head turning. Null if the model or attachment is missing.
      */
-    public static void render(ClientPhantom p, Matrix4f view, Matrix4f projection, Vec3 relative, float partial, int light,
-            @Nullable MultiBufferSource.BufferSource glints) {
-        draw(p.pose, view, projection, relative, p.yaw, p.scale, Head.of(p, partial), light, glints, p.flags);
+    @Nullable
+    public static Vector3f attachment(CreaturePose pose, int frame, String name) {
+        CreatureModel m = model();
+        if (m == null || probe == null) {
+            return null;
+        }
+        CreatureModel.Attachment a = m.attachment(name);
+        if (a == null) {
+            return null;
+        }
+        probe.setFrame(clip(m, pose), frame);
+        return probe.attachment(a, new Vector3f());
     }
 
-    public static void draw(CreaturePose poseId, Matrix4f view, Matrix4f projection, Vec3 relative, float yaw, float scale, Head head,
-            int light, @Nullable MultiBufferSource.BufferSource glints, int flags) {
+    private static CreatureModel.Clip clip(CreatureModel m, CreaturePose pose) {
+        CreatureModel.Clip c = m.clip(pose.clipName());
+        return c != null ? c : m.clips.getOrDefault("stand", m.clips.values().iterator().next());
+    }
+
+    public static void draw(CreaturePose poseId, int frame, Matrix4f view, Matrix4f projection, Vec3 relative, float yaw, float scale,
+            Head head, int light, @Nullable MultiBufferSource.BufferSource glints, int flags) {
         CreatureModel m = model();
-        if (m == null) {
+        CreatureSkeleton s = skeleton;
+        if (m == null || s == null) {
             return;
         }
-        CreatureModel.Pose pose = m.pose(poseId);
-        if (poseId == CreaturePose.LIE) {
+        s.setFrame(clip(m, poseId), frame);
+        Matrix4f toModel = new Matrix4f().translation((float) relative.x, (float) relative.y, (float) relative.z)
+                .rotateY((float) Math.toRadians(-yaw)).scale(scale).invert();
+        bend(s, head, toModel.transformPosition(new Vector3f()));
+        if ((poseId == CreaturePose.LIE || poseId == CreaturePose.RISE) && joints.headCentre() != null) {
             // Lying down, it is placed by its head: on the pillow, the rest of it too long for the
-            // bed, past the foot.
-            Vector3f anchor = pose.pivot(CreatureModel.HEAD);
+            // bed, past the foot. Getting up, it keeps that place while it sits up.
+            Vector3f anchor = poseId == CreaturePose.LIE ? s.attachment(joints.headCentre(), new Vector3f())
+                    : attachment(CreaturePose.LIE, 0, "head");
+            if (anchor == null) {
+                anchor = new Vector3f();
+            }
             float rad = (float) Math.toRadians(-yaw);
             double hx = (anchor.x * Mth.cos(rad) + anchor.z * Mth.sin(rad)) * scale;
             double hz = (-anchor.x * Mth.sin(rad) + anchor.z * Mth.cos(rad)) * scale;
@@ -137,17 +214,16 @@ public final class CreatureRenderer {
         }
         Matrix4f base = new Matrix4f().translation((float) relative.x, (float) relative.y, (float) relative.z)
                 .rotateY((float) Math.toRadians(-yaw)).scale(scale);
-        Matrix4f headM = headMatrix(pose, head);
-        Matrix4f jawM = new Matrix4f(headM).mul(jawMatrix(pose, head.jaw()));
+        long fingerprint = s.fingerprint();
         for (int g = 0; g < m.groups.length; g++) {
             CreatureModel.Group group = m.groups[g];
             Matrix4f model = new Matrix4f(base);
+            VertexBuffer buffer;
             if (group.rigid) {
-                model.mul("jaw".equals(group.name) ? jawM : headM).mul(pose.transforms[g]);
-            }
-            VertexBuffer buffer = buffer(m, g, pose, light);
-            if (buffer == null) {
-                continue;
+                model.mul(s.matrix(group.joint, new Matrix4f()));
+                buffer = rigid(group, g, light);
+            } else {
+                buffer = skinned(group, g, s, fingerprint, light);
             }
             RenderType type = RenderType.entityCutoutNoCull(group.texture);
             type.setupRenderState();
@@ -162,33 +238,128 @@ public final class CreatureRenderer {
         }
         restoreLights();
         if (glints != null) {
-            drawGlints(pose, base, headM, view, glints, flags);
+            drawGlints(s, base, view, glints, flags);
         }
     }
 
-    /** The neck: yaw about the vertical, pitch about the head's own sideways axis, roll about its facing. */
-    private static Matrix4f headMatrix(CreatureModel.Pose pose, Head head) {
-        if (head.yaw() == 0.0F && head.pitch() == 0.0F && head.roll() == 0.0F) {
-            return new Matrix4f();
+    /** The procedural layers, applied to the clip's pose. */
+    private static void bend(CreatureSkeleton s, Head head, Vector3f camera) {
+        Joints j = joints;
+        if (head.shrug() != 0.0F) {
+            s.rotate(j.shoulderL(), (float) Math.toRadians(head.shrug()), new Vector3f(0.0F, 0.0F, 1.0F));
+            s.rotate(j.shoulderR(), (float) Math.toRadians(-head.shrug() * 0.4F), new Vector3f(0.0F, 0.0F, 1.0F));
         }
-        Vector3f neck = pose.pivot(CreatureModel.NECK);
-        Vector3f right = pose.pivot(CreatureModel.HEAD_RIGHT).normalize();
-        Vector3f forward = pose.pivot(CreatureModel.HEAD_FORWARD).normalize();
-        return new Matrix4f().translation(neck)
-                .rotateY((float) Math.toRadians(-head.yaw()))
-                .rotate((float) Math.toRadians(head.pitch()), right)
-                .rotate((float) Math.toRadians(head.roll()), forward)
-                .translate(-neck.x, -neck.y, -neck.z);
+        if (head.fingers() != 0.0F) {
+            // Curl: about each finger's own sideways axis, which for hanging fingers is mostly Z.
+            float a = (float) Math.toRadians(head.fingers());
+            for (int f : j.fingersL()) {
+                s.rotate(f, a, new Vector3f(0.0F, 0.0F, 1.0F));
+            }
+            for (int f : j.fingersR()) {
+                s.rotate(f, -a * 0.6F, new Vector3f(0.0F, 0.0F, 1.0F));
+            }
+        }
+        if (j.right() == null || j.forward() == null || j.neck().length == 0) {
+            return;
+        }
+        if (head.yaw() != 0.0F || head.pitch() != 0.0F || head.roll() != 0.0F) {
+            // Spread over the neck, most of it at the top.
+            float[] share = j.neck().length == 3 ? new float[] {0.2F, 0.3F, 0.5F} : evenShares(j.neck().length);
+            for (int i = 0; i < j.neck().length; i++) {
+                int joint = j.neck()[i];
+                Vector3f right = s.attachment(j.right(), new Vector3f());
+                s.rotate(joint, (float) Math.toRadians(-head.yaw() * share[i]), UP);
+                s.rotate(joint, (float) Math.toRadians(head.pitch() * share[i]), right);
+            }
+            Vector3f forward = s.attachment(j.forward(), new Vector3f());
+            s.rotate(j.neck()[j.neck().length - 1], (float) Math.toRadians(head.roll()), forward);
+        }
+        if (head.jaw() != 0.0F && j.jaw() >= 0 && j.up() != null) {
+            // A dummy's chin piece: it drops straight down its two cuts, tipping a little.
+            float degrees = Mth.clamp(head.jaw(), 0.0F, 120.0F);
+            Vector3f right = s.attachment(j.right(), new Vector3f());
+            Vector3f down = s.attachment(j.up(), new Vector3f()).mul(-degrees / 60.0F * 0.07F);
+            s.rotate(j.jaw(), (float) Math.toRadians(Math.min(degrees, 60.0F) * 0.25F), right);
+            s.translate(j.jaw(), down);
+        }
+        eyes(s, head, camera);
     }
 
-    private static Matrix4f jawMatrix(CreatureModel.Pose pose, float degrees) {
-        if (degrees == 0.0F) {
-            return new Matrix4f();
+    /** Eyes find you (as far as an eye turns), unless this face's eyes are not quite right; lids close over them. */
+    private static void eyes(CreatureSkeleton s, Head head, Vector3f camera) {
+        Joints j = joints;
+        if (j.eyeL() == null || j.forward() == null || j.up() == null) {
+            return;
         }
-        Vector3f hinge = pose.pivot(CreatureModel.JAW_HINGE);
-        Vector3f right = pose.pivot(CreatureModel.HEAD_RIGHT).normalize();
-        return new Matrix4f().translation(hinge).rotate((float) Math.toRadians(Mth.clamp(degrees, -5.0F, 80.0F)), right)
-                .translate(-hinge.x, -hinge.y, -hinge.z);
+        Vector3f forward = s.attachment(j.forward(), new Vector3f());
+        Vector3f up = s.attachment(j.up(), new Vector3f());
+        Vector3f right = s.attachment(j.right(), new Vector3f());
+        int[] eyeJoints = {j.eyeJointL(), j.eyeJointR()};
+        CreatureModel.Attachment[] eyes = {j.eyeL(), j.eyeR()};
+        for (int i = 0; i < 2; i++) {
+            if (eyeJoints[i] < 0) {
+                continue;
+            }
+            Vector3f at = s.attachment(eyes[i], new Vector3f());
+            Vector3f to = new Vector3f(camera).sub(at).normalize();
+            Vector3f want = new Vector3f(forward).lerp(to, Mth.clamp(head.eyesOnYou(), 0.0F, 1.0F)).normalize();
+            float angle = forward.angle(want);
+            float max = (float) Math.toRadians(28.0);
+            if (angle > max) {
+                want = new Vector3f(forward).lerp(want, max / angle).normalize();
+            }
+            s.rotate(eyeJoints[i], new org.joml.Quaternionf().rotationTo(forward, want));
+            if (head.eyesApart() != 0.0F) {
+                s.rotate(eyeJoints[i], (float) Math.toRadians(head.eyesApart() * (i == 0 ? 1.0F : -0.8F)), up);
+            }
+        }
+        float closed = Mth.clamp(head.lids(), 0.0F, 1.0F);
+        if (j.lidL() >= 0 && closed > 0.0F) {
+            // From the modelled rest (a quarter closed) down over the eye.
+            float a = (float) Math.toRadians((closed - 0.2F) * 75.0F);
+            s.rotate(j.lidL(), a, right);
+            s.rotate(j.lidR(), a, right);
+        }
+    }
+
+    private static float[] evenShares(int n) {
+        float[] out = new float[n];
+        java.util.Arrays.fill(out, 1.0F / n);
+        return out;
+    }
+
+    private static VertexBuffer rigid(CreatureModel.Group group, int g, int light) {
+        long key = ((long) g << 40) | (light & 0xFFFFFFFFL);
+        VertexBuffer buffer = RIGID.get(key);
+        if (buffer == null) {
+            if (RIGID.size() > 24) {
+                RIGID.values().forEach(VertexBuffer::close);
+                RIGID.clear();
+            }
+            buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            CreatureSkin.uploadRigid(buffer, group, light);
+            RIGID.put(key, buffer);
+        }
+        return buffer;
+    }
+
+    private static VertexBuffer skinned(CreatureModel.Group group, int g, CreatureSkeleton s, long fingerprint, int light) {
+        long key = fingerprint * 31L + ((long) g << 40) + (light & 0xFFFFFFFFL);
+        VertexBuffer buffer = SKINNED.get(key);
+        if (buffer != null) {
+            return buffer;
+        }
+        if (SKINNED.size() >= MAX_SKINNED) {
+            Iterator<Map.Entry<Long, VertexBuffer>> it = SKINNED.entrySet().iterator();
+            Map.Entry<Long, VertexBuffer> eldest = it.next();
+            buffer = eldest.getValue();
+            it.remove();
+        } else {
+            buffer = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
+        }
+        CreatureSkin.uploadSkinned(buffer, group, s, light);
+        SKINNED.put(key, buffer);
+        return buffer;
     }
 
     /** Vanilla's two fixed lights, turned into this group's model space (the shader does not rotate normals). */
@@ -206,13 +377,14 @@ public final class CreatureRenderer {
         }
     }
 
-    /** Two pinpoints: something wet at the bottom of each socket, catching whatever light there is. */
-    private static void drawGlints(CreatureModel.Pose pose, Matrix4f base, Matrix4f headM, Matrix4f view,
-            MultiBufferSource.BufferSource buffers, int flags) {
-        Matrix4f toWorld = new Matrix4f(base).mul(headM);
-        Vector3f forward = toWorld.transformDirection(pose.pivot(CreatureModel.HEAD_FORWARD)).normalize();
-        Vector3f eyeCenter = toWorld.transformPosition(pose.pivot(CreatureModel.HEAD));
-        // Camera is at the origin of this space.
+    /** Two pinpoints: something wet in each eye, catching whatever light there is. */
+    private static void drawGlints(CreatureSkeleton s, Matrix4f base, Matrix4f view, MultiBufferSource.BufferSource buffers, int flags) {
+        Joints j = joints;
+        if (j.eyeL() == null || j.eyeR() == null || j.forward() == null || j.headCentre() == null) {
+            return;
+        }
+        Vector3f forward = base.transformDirection(s.attachment(j.forward(), new Vector3f())).normalize();
+        Vector3f eyeCenter = base.transformPosition(s.attachment(j.headCentre(), new Vector3f()));
         Vector3f toCamera = new Vector3f(eyeCenter).negate();
         float distance = toCamera.length();
         toCamera.normalize();
@@ -228,16 +400,13 @@ public final class CreatureRenderer {
         if (alpha <= 2) {
             return;
         }
-        Matrix4f rot = new Matrix4f(view);
-        Matrix4f inverse = new Matrix4f(rot).invert();
+        Matrix4f inverse = new Matrix4f(view).invert();
         Vector3f right = inverse.transformDirection(new Vector3f(1.0F, 0.0F, 0.0F));
         Vector3f up = inverse.transformDirection(new Vector3f(0.0F, 1.0F, 0.0F));
-        // A pinpoint at any distance: shrink it up close, grow it a little far away.
         float size = Mth.clamp(0.0045F * (float) Math.sqrt(Math.max(0.05F, distance)), 0.0025F, 0.03F);
         VertexConsumer consumer = buffers.getBuffer(RenderType.eyes(GLINT));
-        for (int eyeOffset : new int[] {CreatureModel.EYE_LEFT, CreatureModel.EYE_RIGHT}) {
-            Vector3f c = toWorld.transformPosition(pose.pivot(eyeOffset));
-            // Pulled toward the camera a little so the socket rim does not hide it.
+        for (CreatureModel.Attachment eye : new CreatureModel.Attachment[] {j.eyeL(), j.eyeR()}) {
+            Vector3f c = base.transformPosition(s.attachment(eye, new Vector3f()));
             c.add(new Vector3f(toCamera).mul(0.02F));
             quad(consumer, c, right, up, size, alpha);
         }
@@ -251,49 +420,6 @@ public final class CreatureRenderer {
                             c.z + (right.z * k[0] + up.z * k[1]) * size)
                     .setColor(alpha, alpha, alpha, alpha).setUv(k[2], k[3]).setOverlay(OverlayTexture.NO_OVERLAY)
                     .setLight(LightTexture.FULL_BRIGHT).setNormal(0.0F, 0.0F, 1.0F);
-        }
-    }
-
-    @Nullable
-    private static VertexBuffer buffer(CreatureModel m, int g, CreatureModel.Pose pose, int light) {
-        CreatureModel.Group group = m.groups[g];
-        long key = ((long) g << 56) | ((long) (group.rigid ? 255 : pose.id.ordinal()) << 48) | (light & 0xFFFFFFFFL);
-        VertexBuffer buffer = BUFFERS.get(key);
-        if (buffer != null) {
-            return buffer;
-        }
-        float[] positions = group.rigid ? group.restPositions : pose.positions[g];
-        float[] normals = group.rigid ? group.restNormals : pose.normals[g];
-        if (positions == null) {
-            return null;
-        }
-        buffer = upload(group, positions, normals, light);
-        BUFFERS.put(key, buffer);
-        if (BUFFERS.size() > MAX_BUFFERS) {
-            Iterator<Map.Entry<Long, VertexBuffer>> it = BUFFERS.entrySet().iterator();
-            Map.Entry<Long, VertexBuffer> eldest = it.next();
-            eldest.getValue().close();
-            it.remove();
-        }
-        return buffer;
-    }
-
-    private static VertexBuffer upload(CreatureModel.Group group, float[] positions, float[] normals, int light) {
-        int[] indices = group.indices;
-        float[] uv = group.uv;
-        try (ByteBufferBuilder bytes = new ByteBufferBuilder(indices.length * DefaultVertexFormat.NEW_ENTITY.getVertexSize())) {
-            BufferBuilder builder = new BufferBuilder(bytes, VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.NEW_ENTITY);
-            for (int i : indices) {
-                builder.addVertex(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]).setColor(255, 255, 255, 255)
-                        .setUv(uv[i * 2], 1.0F - uv[i * 2 + 1]).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light)
-                        .setNormal(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]);
-            }
-            MeshData mesh = builder.buildOrThrow();
-            VertexBuffer buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
-            buffer.bind();
-            buffer.upload(mesh);
-            VertexBuffer.unbind();
-            return buffer;
         }
     }
 }

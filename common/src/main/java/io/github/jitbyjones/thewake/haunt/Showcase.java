@@ -71,6 +71,7 @@ public final class Showcase {
                     Haunt.force(player, state, Stage.HUNT.threshold);
                 }
                 state.setLastAttackDay(-1L);
+                state.setNextAttackTick(0L);
                 BlockPos spot = Spots.behind(player, 2.0, 3.0, 20);
                 if (spot == null) {
                     return "No room behind you.";

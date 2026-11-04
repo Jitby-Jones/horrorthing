@@ -23,7 +23,8 @@ public final class Appearances {
     /** Still, at a block, facing a yaw, in a pose that fits the room. */
     public static Phantom still(ServerPlayer owner, BlockPos feet, float yaw, CreaturePose wanted) {
         CreaturePose pose = fitting(owner.serverLevel(), feet, wanted, owner.getRandom());
-        return Phantoms.create(owner, Vec3.atBottomCenterOf(feet), yaw, Phantom.Mode.STILL, pose).setTouch(0.9, true);
+        return Phantoms.create(owner, Vec3.atBottomCenterOf(feet), yaw, Phantom.Mode.STILL, pose)
+                .setPose(pose, owner.getRandom().nextInt(pose.frames)).setTouch(0.9, true);
     }
 
     /**
@@ -36,9 +37,9 @@ public final class Appearances {
             return wanted;
         }
         if (room == 3) {
-            return wanted == CreaturePose.LUNGE ? CreaturePose.REACH : CreaturePose.STOOP;
+            return wanted == CreaturePose.LUNGE ? CreaturePose.REACH : wanted.isMoving() ? CreaturePose.STOOP_WALK : CreaturePose.STOOP;
         }
-        return random.nextBoolean() ? CreaturePose.CRAWL_A : CreaturePose.CRAWL_B;
+        return CreaturePose.CRAWL;
     }
 
     /** Degrees between where the player is looking and {@code at}. */
@@ -82,6 +83,10 @@ public final class Appearances {
                 continue;
             }
             Vec3 at = Vec3.atBottomCenterOf(top);
+            // It has to be seen: its head and shoulders clear of the hills and the canopy.
+            if (!seen(level, owner, at.add(0.0, CreaturePose.STAND.height * GIANT_SCALE * 0.82, 0.0))) {
+                continue;
+            }
             Phantom giant = Phantoms.create(owner, at, Spots.yawTowards(at, owner.position()), Phantom.Mode.STILL, CreaturePose.STAND)
                     .setScale(GIANT_SCALE).setTouch(0.0, false);
             giant.setBehavior(new PhantomBehavior() {
@@ -96,6 +101,14 @@ public final class Appearances {
             return giant;
         }
         return null;
+    }
+
+    /** A clear line from the player's eye to {@code target}: no hill, no wall, no leaves in the way. */
+    static boolean seen(ServerLevel level, ServerPlayer player, Vec3 target) {
+        Vec3 eye = player.getEyePosition();
+        net.minecraft.world.phys.BlockHitResult hit = level.clip(new net.minecraft.world.level.ClipContext(eye, target,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, player));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS || hit.getLocation().distanceToSqr(eye) > target.distanceToSqr(eye) - 4.0;
     }
 
     /**

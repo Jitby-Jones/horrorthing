@@ -30,19 +30,23 @@ Headphones help.
 
 ## Content notes
 
-- **One jump scare**, from the fourth act on: a face filling the screen, a picture tear and a
-  short distorted scream, at most once per in-game day. The scream has its own volume setting
-  (`screamVolume`), and the tape tear can be turned off with everything else visual
-  (`tapeEffect`).
-- A tall, flat-black, emaciated figure whose head is a stained card with a real human face
-  pressed into it, pins driven through it. No gore.
+- **One jump scare**, from the fourth act on: a face filling the screen, a slow blink, a jaw that
+  keeps opening, a picture tear and a short distorted scream. Only if you stay in a menu with it
+  at arm's length, never in your sleep or through the pause screen, and not again for a few
+  minutes after. The scream has its own volume setting (`screamVolume`), and the tape tear can be
+  turned off with everything else visual (`tapeEffect`).
+- A tall, flat-black stick figure like a stop-motion puppet, with pale long-fingered hands sewn on
+  at the wrists. Its head is an old index card cut to the shape of a face that is too long, a real
+  face pressed into it from behind, wet eyes looking through holes torn in it, its chin a
+  ventriloquist's dummy's held on with stitches. Some blood, bloodshot eyes, teeth. No gore.
 - The picture is made to look like worn videotape at times: grain, scanlines, rolling tracking
   noise. No strobing.
 - It can damage you (default six hearts, through armour). In hardcore it leaves you at half a
   heart instead of killing you.
 - It can move you, change the time of day in singleplayer, make you hungrier, stop you sleeping,
   and open a door. It never breaks blocks or takes items. Optional world edits (`worldEdits`):
-  a placed torch, ripened crops, closed doors, furnace output moved into your chest.
+  a placed torch, ripened crops, closed doors, furnace output moved into your chest, and, a few
+  times in a whole haunting, a new name on the thing in your hand.
 - Everything "meta" stays inside the game: no files outside the game folder, no fake crashes, no
   window-title tricks. It notices real lag spikes but never fakes one.
 
@@ -54,11 +58,11 @@ Headphones help.
 |---|---|---|
 | `pace` | `1.0` | Speed of the whole arc. `2.0` is twice as fast. |
 | `quietNights` | `1` | Nights you can sleep through before anything happens. |
-| `menuHunts` | `true` | It moves while you are in a menu (inventory, chests, crafting, chat). |
+| `menuHunts` | `true` | It moves while you are in a menu (inventory, chests, crafting, chat), within 48 blocks of your bed. |
 | `pauseEvents` | `true` | The pause menu counts too, while the game window has focus. Alt-tabbing never does. |
 | `afkEvents`, `afkSeconds` | `true`, `150` | Standing idle is a lapse. |
 | `hitchEvents` | `true` | Real frame stalls over one second count (capped per day). |
-| `attacks` | `true` | From Act IV it attacks if it reaches you while you are not watching. |
+| `attacks` | `true` | From Act IV it bites if you stay in a menu with it at arm's length. |
 | `attackDamage` | `12.0` | In half-hearts. Armour does not help. |
 | `attackHardcoreKills` | `false` | Hardcore: off leaves you at half a heart. |
 | `blinkEvents` | `true` | Late game: short blackouts in daylight. Never in hardcore. |
@@ -115,8 +119,11 @@ folder:
 ./gradlew :fabric:runClient -PwakeDemo
 ```
 
-The creature is built procedurally in headless Blender, with no GUI and no MCP server: Blender
-as a Python module.
+The creature was designed as pixel art first (`tools/concepts/`, sheets in
+[`docs/concepts/`](docs/concepts/)) and is built procedurally in headless Blender, with no GUI and
+no MCP server: Blender as a Python module. Its head is drawn by `tools/creature/card.py` from the
+same numbers as the pixel art; its skeleton, poses and stop-motion clips are in
+`tools/creature/poses.py`.
 
 ```bash
 pip install bpy==5.2.3 numpy pillow
@@ -126,27 +133,32 @@ pip install bpy==5.2.3 numpy pillow
 python tools/creature/build_creature.py --previews
 ```
 
-That writes the mesh (`models/creature/creature.bin.gz`), its two textures and Cycles preview
-renders of every pose. The sounds and small textures are synthesized by
+That writes the model (`models/creature/creature.bin.gz`: a skeleton, skin weights, rigid parts and
+baked clips, format in `tools/creature/export_v3.py`), its two textures and Cycles preview renders.
+The game skins it on the CPU with dual quaternions, the same as Blender, checked on every build. The sounds and small textures are synthesized by
 `tools/generate_assets.py` (numpy, Pillow, ffmpeg with libvorbis).
 
 <details>
 <summary><b>Screenshots (spoilers)</b></summary>
 
-![The creature: a black stick figure with a stained card for a head, a face pressed into the card, pins through it, strings hanging, and the card split open at the mouth](docs/media/creature.jpg)
+![The creature: a black stick figure like a stop-motion puppet, with pale long-fingered hands; its head an index card cut to a face, real eyes behind holes torn in it, pins at the corners, the chin sewn on like a dummy's](docs/media/creature.jpg)
 
 *The model, rendered in Blender by `tools/creature/build_creature.py`.*
+
+![Five versions of the same index-card face drawn as pixel art, each one a little worse: lids heavy, then open, then the eyes not quite on you, a smile, bleeding](docs/media/concept-faces.jpg)
+
+*It was designed as pixel art first. These are its replacement faces, like a stop-motion puppet's; the other sheets are in [`docs/concepts/`](docs/concepts/).*
 
 Captured in game by the scripted demo:
 
 | | |
 |---|---|
-| ![A black stick figure with a white card for a head, enormous and far away on the horizon](docs/media/giant.jpg) | ![Daylight: the figure standing at the left edge of the view, pins radiating from its card](docs/media/corner-of-eye.jpg) |
-| *Act II: far off, four times its size, facing your way.* | *At the edge of your view. Look straight at it and it is still.* |
-| ![A dark wooden room: the black body invisible, the pale card face floating at the ceiling](docs/media/foot-of-bed.jpg) | ![The inventory screen; behind it, the creature's black legs and long arm at the edge of the screen](docs/media/inventory.jpg) |
-| *Mornings: at the foot of the bed. In the dark you only see the card.* | *While you sort your inventory.* |
-| ![The pause menu over a blurred, noisy picture, PAUSE in the corner, and the creature sharp at the side](docs/media/pause-tape.jpg) | ![The card face filling the screen, the mouth split open, torn by tape damage](docs/media/attack.jpg) |
-| *The pause menu is a paused tape. It is still moving.* | *What happens when it reaches you.* |
+| ![Daylight: the figure standing at the left edge of the view](docs/media/corner-of-eye.jpg) | ![The card face turned toward you over a wooden wall](docs/media/turned.jpg) |
+| *At the edge of your view. Look straight at it and it is still.* | *Look away and back, and it is facing you.* |
+| ![The inventory screen; to its left, the creature walking in, its card face at the top of the screen](docs/media/inventory.jpg) | ![The pause menu over a blurred, noisy picture, PAUSE in the corner, the creature sharp at the side](docs/media/pause-tape.jpg) |
+| *While you sort your inventory, it walks in, a few drawings a second.* | *The pause menu is a paused tape. It is still coming.* |
+| ![The card face filling the screen, torn by tape damage, the dummy's chin dropped into a dark mouth of teeth](docs/media/attack.jpg) | ![A dark wooden room: the black figure lying in a red bed, its legs far past the foot of it](docs/media/in-bed.jpg) |
+| *If you stay in the menu with it at arm's length.* | *The finale. It is in your bed.* |
 
 </details>
 
@@ -154,26 +166,36 @@ Captured in game by the scripted demo:
 <summary><b>How it works (spoilers)</b></summary>
 
 When you sleep, Minecraft deletes the night. When you pause, the world stops. When you open a
-chest, you stop looking. **The Wake is whatever uses that time.** It is a tall black thing with a
-card for a head and a face on the card, and it never moves while you watch the world: only while
-you are in a menu, asleep, or away from the keyboard. Every step it takes is a cut, like
-stop-motion.
+chest, you stop looking. **The Wake is whatever uses that time.** It is a black puppet of a thing
+with an index card for a face and real eyes behind it, and it never moves while you watch the
+world: only while you are in a menu, asleep, or away from the keyboard. Every step it takes is a
+frame of stop-motion: behind your inventory you can watch it come, a few drawings a second.
 
 - **Act I.** Small chores happen overnight, but only after nights in a familiar bed. You wake up
   hungrier.
-- **Act II.** After lost time, sometimes, far away: four times its size, on the horizon or above
-  the trees, facing your house. A ledger appears on your bed, written in your name.
-- **Act III.** It comes closer while you are in menus, but keeps its distance. At the edge of
-  your view its head jerks; look straight at it and it is still; look away and back and it is
-  facing you. In the morning it is in your doorway. The pause menu is a paused tape.
-- **Routine.** It comes all the way. Mornings, it is at the foot of your bed.
-- **Act IV.** If it reaches you while you are not watching, it attacks. Once a day.
-- **Act V.** Silence, then one thing that breaks the rules.
+- **Act II.** After lost time, sometimes, far away: four times its size, over the trees, facing
+  your house. A ledger appears on your bed, written in your name.
+- **Act III.** It comes closer while you are in menus near home, out of the dark, but keeps its
+  distance. At the edge of your view it is wearing a different face; look straight at it and it
+  is back to the first one, almost. Doors cost it time, and you hear the latch. The pause menu is
+  a paused tape. The mornings become a film shot one frame a night: in each room it is a step
+  nearer your pillow for every night you slept there.
+- **Act IV.** It comes all the way, and stops at arm's length. If you stay in the menu, or open
+  one with it already that close, it bites.
+- **Act V.** One silent day, then one thing that breaks the rules.
 - **The Stopped.** The finale. The world freezes like a paused tape, every place you ever walked
   is burned into it as static, and for once it moves while you watch.
 
-Counterplay: staying awake through a whole night pushes it back, sleeping somewhere new slows it
-down, and walking into it makes it go away, for a price. There are two endings.
+Counterplay:
+
+- **Keep the night.** Staying awake through a whole night pushes it back, and its film back a
+  frame.
+- **Sleep somewhere new.** A new bed slows it down and starts a new film.
+- **Light.** It only ever comes out of the dark, and a torch at its feet makes it not be there.
+- **Iron doors** stop it.
+- **Walk into it** and it goes away, for an hour of your time. Then two, then three.
+
+There are two endings.
 
 The full reasoning, including the redesign that turned it into this, is in
 [`docs/DESIGN.md`](docs/DESIGN.md).

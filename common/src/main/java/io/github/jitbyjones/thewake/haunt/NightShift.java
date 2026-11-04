@@ -60,15 +60,6 @@ final class NightShift {
             return;
         }
 
-        // Act II onward: you did not rest. Time Since Last Rest keeps counting; phantoms come anyway.
-        if (state.peakStage().atLeast(Stage.SIGHTINGS)) {
-            int rest = state.restTicks() + nightTicks;
-            Director.schedule(1, () -> {
-                if (!player.hasDisconnected()) {
-                    player.getStats().setValue(player, Stats.CUSTOM.get(Stats.TIME_SINCE_REST), rest);
-                }
-            });
-        }
 
         Runnable beat = choose(player, state, level, head, facing, nightTicks, familiarity, newPlace);
         Director.schedule(1, () -> {
@@ -120,7 +111,10 @@ final class NightShift {
                 state.cooldown("stolen_morning", level.getGameTime(), 24000L * 3);
                 // The screen is still dark from sleep. Keep it dark until it has put you there.
                 WakeNetwork.send(player, FxPayload.of(FxPayload.BLACKOUT, 30));
-                return () -> Theft.wakeAt(player, level, head, where);
+                return () -> {
+                    Theft.wakeAt(player, level, head, where);
+                    Theft.caption(player, state, "why did you leave me here?");
+                };
             }
         }
         if (Beats.window(state, Stage.WATCHING, Stage.HUSH)) {

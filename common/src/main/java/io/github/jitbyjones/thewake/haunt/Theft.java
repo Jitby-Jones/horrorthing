@@ -183,4 +183,20 @@ final class Theft {
         }
         return null;
     }
+
+    /**
+     * Calm words, in the game's own text: the thing in your hand has been renamed. It never takes
+     * anything, never overwrites a name you gave, and only does this a handful of times.
+     */
+    static void caption(ServerPlayer player, HauntState state, String line) {
+        if (!WakeConfig.get().worldEdits || state.captions() >= 6) {
+            return;
+        }
+        net.minecraft.world.item.ItemStack held = player.getMainHandItem();
+        if (held.isEmpty() || held.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME)) {
+            return;
+        }
+        held.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal(line));
+        state.addCaption();
+    }
 }

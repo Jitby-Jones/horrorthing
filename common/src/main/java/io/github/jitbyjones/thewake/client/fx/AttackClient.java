@@ -19,6 +19,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 
@@ -29,8 +30,13 @@ import org.joml.Vector3f;
  */
 public final class AttackClient {
     private static final int FACE_FROM = 2;
-    private static final int BLACK_AT = 15;
-    private static final int END = 26;
+    /** Ticks after its face arrives: it blinks, slowly, then the jaw goes. */
+    private static final int BLINK_FROM = 2;
+    private static final int BLINK_SHUT = 7;
+    private static final int BLINK_OPEN = 9;
+    private static final int JAW_FROM = 10;
+    private static final int BLACK_AT = 34;
+    private static final int END = 46;
     private static final RandomSource RANDOM = RandomSource.create();
 
     private static int age = -1;
@@ -81,11 +87,13 @@ public final class AttackClient {
         if (age < BLACK_AT && mc.screen != null && !(mc.screen instanceof DeathScreen)) {
             mc.setScreen(null);
         }
-        if (age == FACE_FROM + 1) {
+        if (age == FACE_FROM + JAW_FROM) {
             play(WakeRegistry.SCREAM.get(), WakeConfig.get().screamVolume, 0.92F + RANDOM.nextFloat() * 0.12F);
         }
         if (age < BLACK_AT) {
-            TapeEffect.tear(age == Attack.BITE_TICK ? 1.0F : 0.55F);
+            // Quiet while it blinks; the tape tears when the jaw goes, and worst at the bite.
+            float tear = age < FACE_FROM + JAW_FROM ? 0.25F : 0.55F;
+            TapeEffect.tear(age == Attack.BITE_TICK ? 1.0F : tear);
         }
         if (age == BLACK_AT) {
             Overlays.blackout(9);
@@ -128,12 +136,22 @@ public final class AttackClient {
         Camera camera = mc.gameRenderer.getMainCamera();
         float t = age - FACE_FROM + partial;
         float near = Mth.clamp(t / 8.0F, 0.0F, 1.0F);
-        float dist = Mth.lerp(near * near * (3.0F - 2.0F * near), 1.7F, 0.36F);
+        // Close enough to fill the screen, not so close that the jaw drops out of the picture.
+        float dist = Mth.lerp(near * near * (3.0F - 2.0F * near), 1.7F, 0.52F);
         Vector3f look = camera.getLookVector();
-        CreatureModel.Pose pose = model.pose(CreaturePose.LUNGE);
+        int frame = Mth.clamp((int) (t * 0.9F), 0, CreaturePose.LUNGE.frames - 1);
+        Vector3f head = CreatureRenderer.attachment(CreaturePose.LUNGE, frame, "head");
+        Vector3f mouth = CreatureRenderer.attachment(CreaturePose.LUNGE, frame, "mouth");
+        if (head != null && mouth != null) {
+            // Aim between the eyes and the mouth, so the whole face and the chin as it drops are in view.
+            head.lerp(mouth, 0.45F);
+        }
+        Vector3f forward = CreatureRenderer.attachment(CreaturePose.LUNGE, frame, "headForward");
+        if (head == null || forward == null) {
+            return;
+        }
         float yaw = camera.getYRot() + 180.0F;
         // Its head where your eyes are looking.
-        Vector3f head = pose.pivot(CreatureModel.HEAD);
         float rad = (float) Math.toRadians(-yaw);
         float hx = head.x * Mth.cos(rad) + head.z * Mth.sin(rad);
         float hz = -head.x * Mth.sin(rad) + head.z * Mth.cos(rad);
@@ -142,17 +160,31 @@ public final class AttackClient {
                 look.y * dist - head.y + (RANDOM.nextFloat() - 0.5F) * jitter,
                 look.z * dist - hz + (RANDOM.nextFloat() - 0.5F) * jitter);
         // Face toward the camera: level out the pose's own tilt against where you are looking from.
-        Vector3f forward = pose.pivot(CreatureModel.HEAD_FORWARD);
         float have = (float) Math.toDegrees(Math.atan2(forward.y, Math.sqrt(forward.x * forward.x + forward.z * forward.z)));
         float want = (float) Math.toDegrees(Math.asin(Mth.clamp(-look.y, -1.0F, 1.0F)));
-        float jaw = Mth.clamp((t - 1.0F) / 6.0F, 0.0F, 1.0F) * 24.0F + (RANDOM.nextFloat() - 0.5F) * 3.0F;
-        CreatureRenderer.Head h = new CreatureRenderer.Head((RANDOM.nextFloat() - 0.5F) * 4.0F, -(want - have), roll * (1.0F - near * 0.6F), jaw);
+        // One slow blink. Then the eyes, wide. Then the stitches go and the chin keeps coming.
+        float lids;
+        if (t < BLINK_FROM) {
+            lids = 0.15F;
+        } else if (t < BLINK_SHUT) {
+            lids = Mth.lerp((t - BLINK_FROM) / (BLINK_SHUT - BLINK_FROM), 0.15F, 1.0F);
+        } else if (t < BLINK_OPEN) {
+            lids = 1.0F;
+        } else {
+            lids = Math.max(0.0F, 1.0F - (t - BLINK_OPEN) * 1.5F);
+        }
+        float jaw = t < JAW_FROM ? 0.0F : Math.min(120.0F, (t - JAW_FROM) * 7.5F) + (RANDOM.nextFloat() - 0.5F) * 3.0F;
+        CreatureRenderer.Head h = new CreatureRenderer.Head((RANDOM.nextFloat() - 0.5F) * 2.0F, -(want - have),
+                roll * (1.0F - near * 0.6F), jaw, 0.0F, 0.0F, lids, 1.0F, 0.0F);
         Matrix4fStack stack = RenderSystem.getModelViewStack();
         stack.pushMatrix();
         stack.set(WorldRender.VIEW);
         RenderSystem.applyModelViewMatrix();
         RenderSystem.clear(256, Minecraft.ON_OSX);
-        CreatureRenderer.draw(CreaturePose.LUNGE, WorldRender.VIEW, WorldRender.PROJECTION, relative, yaw, 1.0F, h,
+        // Its own lens, whatever your field of view: the face fills the screen the same way for everyone.
+        float aspect = (float) mc.getWindow().getWidth() / Math.max(1, mc.getWindow().getHeight());
+        Matrix4f lens = new Matrix4f().setPerspective((float) Math.toRadians(70.0), aspect, 0.05F, 64.0F);
+        CreatureRenderer.draw(CreaturePose.LUNGE, frame, WorldRender.VIEW, lens, relative, yaw, 1.0F, h,
                 LightTexture.FULL_BRIGHT, mc.renderBuffers().bufferSource(), Phantom.FLAG_LIT);
         RenderSystem.clear(256, Minecraft.ON_OSX);
         stack.popMatrix();

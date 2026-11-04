@@ -78,7 +78,13 @@ public final class WakeClient {
             return;
         }
         Screen screen = mc.screen;
-        int kind = screen == null ? Hunter.SCREEN_NONE : screen instanceof PauseScreen ? Hunter.SCREEN_PAUSE
+        // A loading screen, a death screen or a disconnect is not you looking away.
+        boolean notYours = screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen
+                || screen instanceof net.minecraft.client.gui.screens.LevelLoadingScreen
+                || screen instanceof net.minecraft.client.gui.screens.ProgressScreen
+                || screen instanceof net.minecraft.client.gui.screens.GenericMessageScreen
+                || screen instanceof net.minecraft.client.gui.screens.DeathScreen;
+        int kind = screen == null || notYours ? Hunter.SCREEN_NONE : screen instanceof PauseScreen ? Hunter.SCREEN_PAUSE
                 : screen instanceof ChatScreen ? Hunter.SCREEN_CHAT : Hunter.SCREEN_MENU;
         // (The scripted demo runs on a virtual display where the window never has focus.)
         boolean focused = mc.isWindowActive() || io.github.jitbyjones.thewake.haunt.DemoScript.ENABLED;

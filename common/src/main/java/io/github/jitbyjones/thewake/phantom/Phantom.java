@@ -27,6 +27,7 @@ public final class Phantom {
     float yaw;
     Mode mode;
     CreaturePose pose;
+    int frame;
     float headYaw;
     float headPitch;
     float jaw;
@@ -60,6 +61,7 @@ public final class Phantom {
     public float yaw() { return yaw; }
     public Mode mode() { return mode; }
     public CreaturePose pose() { return pose; }
+    public int frame() { return frame; }
     public float scale() { return scale; }
     public float headYaw() { return headYaw; }
     public boolean isRemoved() { return removed; }
@@ -86,9 +88,17 @@ public final class Phantom {
         return this;
     }
 
+    /** A pose (a held frame of a clip); a moving clip starts from its first frame. */
     public Phantom setPose(CreaturePose pose) {
-        if (this.pose != pose) {
+        return setPose(pose, pose == this.pose ? frame : 0);
+    }
+
+    /** One frame of a clip: stop-motion, the client shows exactly this frame until told otherwise. */
+    public Phantom setPose(CreaturePose pose, int frame) {
+        int f = Math.floorMod(frame, Math.max(1, pose.frames));
+        if (this.pose != pose || this.frame != f) {
             this.pose = pose;
+            this.frame = f;
             dirty = true;
         }
         return this;

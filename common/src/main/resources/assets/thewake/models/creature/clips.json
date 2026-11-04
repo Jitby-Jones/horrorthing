@@ -1,0 +1,96 @@
+{
+ "version": 3,
+ "joints": 125,
+ "clips": {
+  "stand": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 3.004
+  },
+  "stoop": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.714
+  },
+  "crouch": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 1.919
+  },
+  "peek_right": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.955
+  },
+  "peek_left": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.953
+  },
+  "reach": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.867
+  },
+  "bedside": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.15
+  },
+  "lie": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 0.313
+  },
+  "walk": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 2.783
+  },
+  "stoop_walk": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 2.595
+  },
+  "crawl": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 1.677
+  },
+  "lunge": {
+   "frames": 10,
+   "fps": 12.0,
+   "loop": false,
+   "height": 3.267
+  },
+  "rise": {
+   "frames": 12,
+   "fps": 8.0,
+   "loop": false,
+   "height": 3.015
+  },
+  "lean_right": {
+   "frames": 6,
+   "fps": 6.0,
+   "loop": false,
+   "height": 3.038
+  },
+  "lean_left": {
+   "frames": 6,
+   "fps": 6.0,
+   "loop": false,
+   "height": 3.043
+  }
+ }
+}

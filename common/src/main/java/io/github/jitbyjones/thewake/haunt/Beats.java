@@ -26,11 +26,11 @@ final class Beats {
     /** The three silent days after reaching Act V. */
     static boolean hush(HauntState state, ServerLevel level) {
         return state.peakStage().atLeast(Stage.HUSH) && !state.hasFlag("head_turn")
-                && state.hushDay() >= 0 && Haunt.day(level) < state.hushDay() + 3;
+                && state.hushDay() >= 0 && Haunt.day(level) < state.hushDay() + 1;
     }
 
     static boolean headTurnDue(HauntState state, ServerLevel level) {
         return state.peakStage().atLeast(Stage.HUSH) && !state.hasFlag("head_turn")
-                && state.hushDay() >= 0 && Haunt.day(level) >= state.hushDay() + 3;
+                && state.hushDay() >= 0 && Haunt.day(level) >= state.hushDay() + 1;
     }
 }

@@ -7,11 +7,13 @@ import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import java.util.function.LongPredicate;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * Every way to the player through the blocks around them: a breadth-first tree rooted at their
@@ -19,7 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * again only if they have moved.
  *
  * <p>It goes where a crawling thing two blocks tall can go. Doors do not stop it: it opens them
- * while you are not looking, and closes them again.
+ * while you are not looking, and closes them again. Iron doors do.
  */
 final class Field {
     private static final int[][] STEPS = {
@@ -179,10 +181,34 @@ final class Field {
 
     static boolean passable(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (state.getBlock() instanceof DoorBlock || state.getBlock() instanceof FenceGateBlock || state.getBlock() instanceof TrapDoorBlock) {
+        if (state.getBlock() instanceof DoorBlock door) {
+            // A door it can open by hand, it opens. An iron door it waits behind.
+            return state.getValue(DoorBlock.OPEN) || door.type().canOpenByHand();
+        }
+        if (state.getBlock() instanceof TrapDoorBlock) {
+            return state.getValue(TrapDoorBlock.OPEN) || !state.is(net.minecraft.world.level.block.Blocks.IRON_TRAPDOOR);
+        }
+        if (state.getBlock() instanceof FenceGateBlock) {
             return true;
         }
-        return state.getCollisionShape(level, pos).isEmpty() && state.getFluidState().isEmpty();
+        if (!state.getFluidState().isEmpty()) {
+            return false;
+        }
+        VoxelShape shape = state.getCollisionShape(level, pos);
+        // Carpet, a snow layer, a rail: nothing to it.
+        return shape.isEmpty() || shape.max(Direction.Axis.Y) <= 0.2;
+    }
+
+    /** A closed door it can open: it costs it time, and you hear it. */
+    static boolean closedDoor(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return (state.getBlock() instanceof DoorBlock && !state.getValue(DoorBlock.OPEN))
+                || (state.getBlock() instanceof FenceGateBlock && !state.getValue(FenceGateBlock.OPEN));
+    }
+
+    /** Where the player's feet really are, standing on a slab, a path, carpet or farmland. */
+    static BlockPos feet(net.minecraft.world.entity.Entity entity) {
+        return BlockPos.containing(entity.getX(), entity.getY() + 0.5, entity.getZ());
     }
 
     /** Floor below, two blocks of room. */
@@ -211,7 +237,7 @@ final class Field {
 
     @Nullable
     private static BlockPos nearbyWalkable(ServerLevel level, BlockPos root) {
-        for (int dy = 0; dy >= -2; dy--) {
+        for (int dy = 1; dy >= -2; dy--) {
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dz = -1; dz <= 1; dz++) {
                     BlockPos p = root.offset(dx, dy, dz);

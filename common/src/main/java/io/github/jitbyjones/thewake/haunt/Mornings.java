@@ -23,8 +23,10 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * A skipped night is the longest lapse there is. Where it spent it is where you find it in the
- * morning: a little closer every act. Act II: on the horizon. Act III: in the doorway. Then at the
- * foot of the bed. Then bent over you, and some mornings it does not wait for you to get up.
+ * morning. Act II: on the horizon. From Act III the mornings are a film shot one frame a night: in
+ * each room it is a step nearer your pillow for every night you slept there, and a step back for
+ * every night you kept. The act holds it back: in the doorway first, then near the bed, then bent
+ * over you.
  */
 public final class Mornings {
     private Mornings() {}
@@ -40,29 +42,15 @@ public final class Mornings {
             Hunter.maybeGiant(player, state);
             return;
         }
-        if (stage == Stage.SIGHTINGS) {
-            placed = doorway(player, level, head);
-            if (placed == null) {
-                placed = Appearances.sighting(player, state);
-            }
-        } else if (stage == Stage.ROUTINE) {
-            BlockPos foot = Spots.bedFoot(level, head, facing);
-            if (foot != null) {
-                Vec3 at = Vec3.atBottomCenterOf(foot);
-                placed = Appearances.still(player, foot, Spots.yawTowards(at, Vec3.atCenterOf(head)), CreaturePose.STAND);
-            }
-        } else if (stage == Stage.HUNT) {
-            BlockPos side = Spots.bedside(level, head, facing, null);
-            if (side != null) {
-                Vec3 at = Vec3.atBottomCenterOf(side);
-                placed = Appearances.still(player, side, Spots.yawTowards(at, Vec3.atCenterOf(head)), CreaturePose.BEDSIDE);
-                if (Attack.allowed(player, state) && random.nextFloat() < 0.3F) {
-                    Phantom creature = placed;
-                    Director.schedule(18, () -> {
-                        if (!player.hasDisconnected() && !creature.isRemoved() && Attack.allowed(player, state)) {
-                            Attack.begin(player, state, creature);
-                        }
-                    });
+        if (stage.atLeast(Stage.SIGHTINGS)) {
+            // One frame a night: in this room it is a step nearer your pillow each skipped night.
+            int frame = state.advanceFilm(head, 1);
+            int limit = stage == Stage.SIGHTINGS ? 1 : stage == Stage.ROUTINE ? 3 : Integer.MAX_VALUE;
+            placed = film(player, level, head, facing, frame, limit);
+            if (placed == null && stage == Stage.SIGHTINGS) {
+                placed = doorway(player, level, head);
+                if (placed == null) {
+                    placed = Appearances.sighting(player, state);
                 }
             }
         }
@@ -71,6 +59,63 @@ public final class Mornings {
             placed.setTouch(0.9, true);
             Hunter.adopt(player, placed);
         }
+    }
+
+    /**
+     * The morning film: its way into this room from the door to your bedside, one frame per night.
+     * limit: how many frames from the end it stops (the act holds it back).
+     */
+    @Nullable
+    private static Phantom film(ServerPlayer player, ServerLevel level, BlockPos head, Direction facing, int frame, int limit) {
+        BlockPos side = Spots.bedside(level, head, facing, null);
+        if (side == null) {
+            return null;
+        }
+        Field field = Field.build(level, side, 16, 2500);
+        if (field.size() < 4) {
+            return null;
+        }
+        // Where it comes in: the door of the room, else the far end of it.
+        BlockPos start = null;
+        double bestSq = 14.0 * 14.0;
+        for (BlockPos pos : BlockPos.betweenClosed(head.offset(-12, -2, -12), head.offset(12, 2, 12))) {
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof DoorBlock && state.getValue(DoorBlock.HALF) == DoubleBlockHalf.LOWER && field.contains(pos)) {
+                double sq = pos.distSqr(head);
+                if (sq < bestSq && sq > 4.0) {
+                    bestSq = sq;
+                    start = pos.immutable();
+                }
+            }
+        }
+        if (start == null) {
+            start = field.pick(Math.min(10, field.size() / 2), 12, key -> true, player.getRandom());
+        }
+        if (start == null) {
+            return null;
+        }
+        java.util.List<BlockPos> path = new java.util.ArrayList<>();
+        BlockPos at = start;
+        while (at != null && path.size() < 40) {
+            path.add(at);
+            if (field.distance(at) <= 0) {
+                break;
+            }
+            at = field.toward(at);
+        }
+        int last = path.size() - 1;
+        int index = Math.min(Math.max(0, frame - 1), Math.max(0, last - (limit == Integer.MAX_VALUE ? 0 : limit)));
+        BlockPos cell = path.get(index);
+        if (WakeConfig.get().worldEdits && index > 0) {
+            BlockState door = level.getBlockState(start);
+            if (door.getBlock() instanceof DoorBlock && !door.getValue(DoorBlock.OPEN)) {
+                // It came in. It left the door open.
+                level.setBlock(start, door.setValue(DoorBlock.OPEN, true), Block.UPDATE_ALL);
+            }
+        }
+        Vec3 pos = Vec3.atBottomCenterOf(cell);
+        CreaturePose pose = index == last ? CreaturePose.BEDSIDE : last - index <= 2 ? CreaturePose.REACH : CreaturePose.STAND;
+        return Appearances.still(player, cell, Spots.yawTowards(pos, Vec3.atCenterOf(head)), pose);
     }
 
     /** Distance Walked went up while you slept: it walked your routes for you. */

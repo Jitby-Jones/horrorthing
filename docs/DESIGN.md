@@ -710,9 +710,10 @@ pale starved body read as generic: a "creepy humanoid", not a picture you rememb
 ### References (his originals only, studied, not copied)
 
 The Boiled One (the broadcast still, and the full-body still of it standing in a field over a
-house); the Locust / Organator from *T.O.E.*; Longboy Bonsai; *where_did_life_go*; the square card
-face from *paper souls*; the bald bust with its eyes in the wrong place; the heart hung in a
-wallpapered corner.
+house); the Locust / Organator from *T.O.E.*; Longboy Bonsai; *the boy and the bath* (the white
+figure with strings from its jaw to its chest); the square paper face from *where_did_life_go*; the
+bald bust with its eyes in the wrong place, from *paper souls*; the heart hung in a wallpapered
+corner. (Pass 10 first had three of these titles swapped; corrected in Pass 11.)
 
 What they share:
 
@@ -756,3 +757,242 @@ In a dark room the black body vanishes; what is left is a pale rectangle at head
 blocks up, with a face on it, and two wet points of light. In daylight it is a black stick figure
 with a white card for a head and a halo of pins: a silhouette nothing in Minecraft has. Close
 up, the face is the worst part: it is an ordinary face, and it is on a card.
+
+## Pass 11: The rework, in stages
+
+Owner request: rework and polish the whole mod, going through stages to find the best model,
+animation, concept and gameplay loop. Draw the monster designs as pixel art first, as reference,
+and reference Doctor Nowhere heavily. Mid-way: "the pixel art needs to be higher res so you can add
+the horrific details."
+
+### Stage 1: a wider reference board
+
+Pass 10 worked from about ten images. This time: all fifteen videos on his channel, with the
+thumbnail and three frames from inside each (sixty images), contact-sheeted and studied. New to
+the board:
+
+- the Heliogene (a grinning sun-face on a draped stalk);
+- the *Smilehood* portrait with half its face gone;
+- a doorway figure with an eye-star for a head;
+- *new ear*'s crowd of identical cone-heads on black thorns;
+- *Desiderio* (a long-nosed pentagon skull waving a long-fingered hand; a white figure with
+  branching tree arms and a seam down its chest; a man with a lampshade for a head);
+- the Locust in a wallpapered corner, its hand pressed to the glass until it cracks (*T.O.E.*);
+- the white figure folded into a crib under a clock (*the boy and the bath*);
+- the text cards ("why did you leave me here?", "it was all your fault", "the body appeared
+  untouched").
+
+His visual language, as a checklist:
+
+1. A pale, photographic face on the wrong thing: a card, a box, a sun, a cone, a lampshade.
+2. Bodies that are barely there: flat black silhouettes, or bone-white starved sculpture, too long
+   in the neck and limbs.
+3. Thin radiating lines: pins, rays, branches, strings, hair.
+4. Hands: huge, long-fingered, pressed toward you.
+5. Domestic and old: wallpaper, doorways, cribs, framed photos, a clock.
+6. Frames within frames: photos held in the dark, TVs, chat windows.
+7. Repetition, children's drawings, and calm text over terrible pictures.
+8. Sadness and guilt under the horror: things left behind, asking why.
+
+### Stage 2: six designs, drawn in pixel art
+
+Drawn in code (`tools/concepts/`), first at 32 pixels per block. At the owner's request, redrawn at
+80 pixels per block with 300-pixel faces, so the details could be horrible: capillaries, worn teeth
+and gums, saliva, pin wounds with rust running down, paper tears. Each sheet shows:
+
+- front and side views;
+- a dark-room corner-of-the-eye test;
+- far away as a giant behind trees;
+- the bare silhouette;
+- the face, and the face when it reaches you;
+- one close detail.
+
+The sheets are in `docs/concepts/a_card.png` to `f_sheet.png`, and `board.png`.
+
+| | Design | Idea |
+|---|---|---|
+| A | The Card | The creature as built in Pass 10: the baseline to beat. |
+| B | The Puppeteer | Black-light theatre: all matte black but a long pale face and two pale hands, the face on a lengthening rod of a neck. |
+| C | The Collage | Eyes, nose and mouth cut from photographs of different people, taped onto a square of paper, sliding around in the corner of your eye. |
+| D | The Radiant | A round face ringed with long fingers like a sunburst, on a black robe-spire. |
+| E | The Bust | A plaster bust and a bald egg of a head, its eyes in the wrong places. |
+| F | The Sleeper | Something under an old red bedsheet, its face pushed through the cloth. |
+
+### Stage 3: critique and choice
+
+An independent reviewer scored each design on six things: the corner-of-the-eye read, the
+close-up, the silhouette, how much it feels like Doctor Nowhere, originality, and how well it
+suits peeking, folding and crawling. In summary:
+
+- **A** has the best idea (real wet eyes in a dead stained card), but its pin halo is the Boiled
+  One's and its string fringe reads as a jellyfish.
+- **B** fits the behaviour best and wins the dark room (three pale things: a face and two hands),
+  but its egg mask is generic.
+- **C** has the best mechanic ("a little more wrong each time") and the best close-up, but it is
+  *where_did_life_go*'s paper face and turns cute at a distance.
+- **D** has the strongest silhouette, but it is a Heliogene with fingers, and it can neither stoop
+  nor crawl.
+- **E** is a near-copy of *paper souls*.
+- **F** is the most visceral up close, but standing, it silhouettes as a pointed hood.
+
+Its recommendation, which I agree with: **A's head on B's body, with C's mechanic and F's
+wetness.** That means:
+
+- the card cut to a face too long, so that it reads as a face from across a room;
+- a real face pressed through it from behind;
+- the eyes seen through ragged holes;
+- cut across the lips into a ventriloquist dummy's jaw, held by stitches;
+- B's pale hands with a knuckle too many, on the black puppet body;
+- C's sliding features turned into stop-motion replacement faces;
+- F kept for one scene only: its face pushed up through your bedsheet.
+
+Dropped: the pin halo (four short pins remain, at the corners) and the string fringe.
+
+Round 2 (`docs/concepts/final_*.png`) draws the chosen design from the game's own rig. The card is
+now an old index card, its faint ruled lines bending over the face behind it, with a typed number
+in the corner. The sheets show:
+
+- a turnaround;
+- the hand, sewn on at the wrist;
+- five replacement faces, each worse than the last;
+- the attack frame by frame: a slow blink, then the stitches give and the chin piece drops onto
+  a real mouth, and the last frame, fingers curling in round the edges of your screen;
+- the places you find it: round a door frame, its face flat against your ceiling over your bed,
+  crawling through a doorway, as a giant over the trees, under your sheet, and at light levels 0,
+  4 and 7.
+
+### Stage 4: the model, built from the pixel art
+
+`tools/creature/card.py` draws the card at any resolution, from the same numbers as the pixel art:
+
+- the scissor-cut outline;
+- the eye holes torn in it;
+- the dummy's chin piece;
+- the face behind it, as a height field;
+- the painted front.
+
+The Blender build turns the masks and height field into geometry: a grid over the mask, pushed out
+by the face, given a paper's thickness, its outer edge smoothed and its eye holes left ragged. It
+then samples the painted card as the texture, so the model cannot drift from the reference.
+
+Behind the holes sit real eyeballs (bloodshot, grey-green, wet), in dark sockets, with lids on their
+own joints. Behind the chin piece is a wet dark mouth with two rows of small worn teeth. A small
+black skull behind the card hides all of it from behind; from the front, the card covers it.
+
+The body is the black stick body, with:
+
+- lacquered ball joints at every joint, like a stop-motion armature;
+- thicker limbs, so it reads at a distance;
+- a longer neck;
+- pale hands sewn on at the wrist, with dirt in the creases, dark nails and four phalanges a
+  finger.
+
+Previews are rendered with Cycles and checked against the pixel art. Fixes found that way:
+
+- the card's edge was stair-stepped;
+- the mouth was not deep enough for the jaw's full drop;
+- the tongue read as a floating disc;
+- seen from behind, the sockets showed through the card.
+
+### Stage 5: animation
+
+Pass 9 and 10 drew the creature from thirteen baked poses: a static pose library, with a two-frame
+walk. Now:
+
+- **A real skeleton in the game.** The model file (format v3, `tools/creature/export_v3.py`) carries
+  125 joints, four skin weights per vertex, rigid parts riding on joints, named attachment points,
+  and baked clips.
+  - The game skins on the CPU with dual quaternions, matching Blender's own deform to within
+    0.1 mm (checked on every build).
+  - It does this only when the pose actually changes, a few times a second in stop-motion. Indexed
+    uploads keep each re-skin under a megabyte.
+- **Clips**, authored as keyed poses with feet put on the floor frame by frame (`poses.py`):
+  - a marionette walk (knees lifted too high, shoulders hitching, fingers trailing, the head level
+    and on you);
+  - a stoop-walk, bent double under three-block ceilings;
+  - a low crawl with elbows and knees splayed, to fit doorways;
+  - leaning out from behind a wall edge;
+  - the lunge;
+  - sitting up out of a bed, straight-backed, for the finale.
+- **The server drives the stop-motion.** It walks in sub-block steps, and the client gets a new
+  frame (pose and place together) every quarter stride. Headroom picks the clip: tall rooms walk,
+  three blocks stoop, doorways crawl. Behind your inventory you watch it come, a few drawings a
+  second.
+- **Procedural layers** on top of any frame:
+  - the head turned to you, spread down the neck;
+  - eyes that find you (up to 28 degrees);
+  - lids that close;
+  - the dummy's chin dropping straight down its cuts;
+  - a curl of the fingers, a hitch of the shoulder.
+- **Replacement faces.** In the corner of your eye it is wearing another face: lids half down, eyes
+  not quite on you or not quite together, the jaw ajar. Look straight at it and it is back to the
+  first face, almost. The head shaking every few ticks at the edge of the screen (which read as a
+  glitch) is gone: the periphery starts at 36 degrees, and twitches are rare and small.
+- **The attack** now takes about a second and a half: the face comes at you, blinks once, slowly,
+  then the stitches go and the chin keeps coming. It is drawn with its own fixed lens, so it fills
+  the screen the same way at any field of view.
+
+### Stage 6: the concept and the loop
+
+A second independent reviewer read this document and the code. Its five weaknesses:
+
+1. **Act IV taxed ordinary play.** Any menu held eight to twelve seconds cost six hearts:
+   crafting, anvils, trading, even reading its own ledger. Bites came at bedtime and, 30% of the
+   time, on waking. Players would take the daily bite at full health and then craft in peace.
+2. **Free tells, and an off switch.** The tape motor started only when it arrived, so the player
+   always knew. Then the hush turned the hunt off for three days.
+3. **Space meant nothing,** except by accident.
+   - It re-arrived near you wherever you went.
+   - Doors, iron ones too, counted as air.
+   - Standing on carpet, slabs, paths, farmland or soul sand, or swimming, it could not find you
+     at all and was silently deleted.
+4. **Routine.** Each act had one fixed morning spot, and "walk into it" dismissed anything.
+5. **The founding dilemma was gone.** Sleeping no longer reset Time Since Last Rest, so phantoms
+   came whether you slept or not.
+
+What changed, keeping the core rule (it moves only while you are not watching the world):
+
+- **Two-stage reach.** In Act IV it stops at arm's length, its jaw a frame open, and waits. It
+  bites only if you opened the menu with it already that close, or if you stay in the menu five
+  seconds longer now that it is.
+  - Never in your sleep, never while you are away from the keys, never on waking.
+  - Never through the pause screen: that waits until you press play.
+  - A random cooldown of two to six minutes replaces the daily cap, so there is no "take the
+    bite and then craft in peace".
+- **It comes out of the dark.** It only arrives where it is dark enough for a monster, and if a
+  lapse leaves it standing in torchlight, you find it in the nearest dim place instead. A torch
+  set down at its feet makes it not be there any more. Light buys distance, not immunity.
+- **It haunts the house, not you.** Menus only count within 48 blocks of your bed.
+- **Doors.** A closed wooden door costs it a few seconds, and you hear the latch while you are in
+  the menu. An iron door stops it.
+- **The morning film.** From Act III the mornings are shot one frame a night, per room: for every
+  skipped night in a bed it is a step further from the door toward your pillow, and for every night
+  you keep, a step back. The act holds it back: the doorway first, then near the bed, then bent
+  over you. A new bed starts a new film, and the old room keeps its last frame.
+- **Calm words, in the game's own text.** After a stolen morning, the thing in your hand has been
+  renamed, *why did you leave me here?*, in the italics of an anvil. It does this at most a handful
+  of times, never takes anything, and never overwrites a name you gave.
+- **Fixes:**
+  - The path field is rooted where your feet really are, and it searches up as well as down.
+    Thin collision (carpet, snow) does not block it. When it cannot find you it waits instead of
+    vanishing.
+  - Sleeping rests you again, so phantoms are back on the scale against sleep.
+- **Numbers:**
+  - Arrivals at 26-48 degrees from where you look (80%), beside the menu panel, where you can
+    watch it come; otherwise behind you.
+  - The tape motor runs through every lapse it could use, not just the ones it does.
+  - Walking into it costs an hour, then two, then three in a day.
+  - The hush is one silent day, not three.
+  - A kept night takes back 0.08, not 0.06.
+  - In the finale it walks at 0.2 to 0.25 blocks a tick, faster than you walk.
+- **The giant** is only placed where its head and shoulders clear the hills and the trees from
+  where you stand (Pass 10's demo had hidden it in a valley).
+
+**Considered, not taken (yet):**
+
+- Four place-based phases instead of seven stages. Its point stands (Sightings and Routine differ
+  mostly in tick counts), but it is a larger rewrite than this pass.
+- A "frames" hush, where it appears only over the paperdoll's shoulder and in the paused frame.
+- Children's drawings on framed maps.
+- The hand on the glass: that is *T.O.E.*'s move.
+- Retuning the finale's paths to the ones it walked.

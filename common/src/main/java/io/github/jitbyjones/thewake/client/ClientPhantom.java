@@ -15,6 +15,7 @@ public final class ClientPhantom {
     public final int id;
     public Phantom.Mode mode = Phantom.Mode.STILL;
     public CreaturePose pose = CreaturePose.STAND;
+    public int frame;
     public int bedDirection = -1;
     public int flags;
 
@@ -50,12 +51,14 @@ public final class ClientPhantom {
     void apply(PhantomPayload p) {
         Vec3 newPos = new Vec3(p.x(), p.y(), p.z());
         CreaturePose newPose = CreaturePose.byId(p.pose());
-        if (!fresh && (newPos.distanceToSqr(pos) > 1.0E-4 || newPose != pose || Math.abs(Mth.wrapDegrees(p.yaw() - yaw)) > 0.5F)) {
+        if (!fresh && (newPos.distanceToSqr(pos) > 1.0E-4 || newPose != pose || p.frame() != frame
+                || Math.abs(Mth.wrapDegrees(p.yaw() - yaw)) > 0.5F)) {
             sinceCut = 0;
             gaze.cut();
         }
         mode = Phantom.Mode.values()[Mth.clamp(p.mode(), 0, Phantom.Mode.values().length - 1)];
         pose = newPose;
+        frame = p.frame();
         bedDirection = p.bedDirection();
         flags = p.flags();
         pos = newPos;
@@ -111,6 +114,6 @@ public final class ClientPhantom {
 
     /** Height of the top of its head above its feet, in blocks. */
     public float height() {
-        return pose.height * scale;
+        return pose.height(frame) * scale;
     }
 }

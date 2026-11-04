@@ -27,7 +27,7 @@ import net.minecraft.world.phys.Vec3;
  * behind them now. It moves like they do. It does not stop.
  */
 final class StoppedSession {
-    enum Phase { IN_BED, WALKING, DONE }
+    enum Phase { IN_BED, RISING, WALKING, DONE }
 
     final ServerPlayer player;
     final ServerLevel level;
@@ -60,7 +60,7 @@ final class StoppedSession {
     private Vec3 truePos;
     private float heading;
     private int frameClock;
-    private boolean frameB;
+    private double walked;
 
     // escape
     @Nullable
@@ -93,6 +93,10 @@ final class StoppedSession {
             if (age >= getUpAt) {
                 getUp();
             }
+            return false;
+        }
+        if (phase == Phase.RISING) {
+            rise();
             return false;
         }
         if (phase == Phase.WALKING) {
@@ -128,21 +132,52 @@ final class StoppedSession {
             return;
         }
         frameClock = 0;
-        boolean walking = here().distanceTo(wake.pos()) > 0.05;
-        frameB = !frameB;
+        double moved = here().distanceTo(wake.pos());
+        boolean walking = moved > 0.05;
+        walked += moved;
+        int frame = (int) Math.floor(walked / 2.0 * CreaturePose.WALK.frames);
         wake.moveTo(here(), heading)
-                .setPose(walking ? (frameB ? CreaturePose.WALK_B : CreaturePose.WALK_A) : CreaturePose.STAND)
+                .setPose(walking ? CreaturePose.WALK : CreaturePose.STAND, walking ? frame : 0)
                 .setHead(Mth.clamp(Mth.wrapDegrees(Spots.yawTowards(here(), player.position()) - heading), -110.0F, 110.0F), 0.0F);
     }
 
+    private int riseAge;
+
+    /**
+     * The one time it moves while you watch: it sits up out of your bed, its back straight, a
+     * drawing at a time, swings round and stands. Then it walks.
+     */
     void getUp() {
         if (phase != Phase.IN_BED) {
             return;
         }
+        phase = Phase.RISING;
+        riseAge = 0;
+        wake.setPose(CreaturePose.RISE, 0);
+    }
+
+    private void rise() {
+        riseAge++;
+        int frame = Math.min(CreaturePose.RISE.frames - 1, riseAge / 5);
+        wake.setPose(CreaturePose.RISE, frame);
+        if (riseAge >= CreaturePose.RISE.frames * 5 + 12) {
+            stand();
+        }
+    }
+
+    private void stand() {
         phase = Phase.WALKING;
         // There is no getting up. It was lying down; now it is standing beside the bed.
         BlockPos side = Spots.bedside(level, oldBed, facing, player.position());
         Vec3 at = side != null ? Vec3.atBottomCenterOf(side) : Vec3.atBottomCenterOf(oldBed).add(0, 0.6, 0);
+        heading = Spots.yawTowards(at, player.position());
+        // Where it finished standing: its feet were past the foot of the bed.
+        double rad = Math.toRadians(wake.yaw());
+        Vec3 feet = wake.pos().add(-Math.sin(rad) * 2.95, 0.0, Math.cos(rad) * 2.95);
+        BlockPos stood = BlockPos.containing(feet);
+        if (Spots.standable(level, stood)) {
+            at = Vec3.atBottomCenterOf(stood);
+        }
         heading = Spots.yawTowards(at, player.position());
         wake.setMode(Phantom.Mode.WALKER).setPose(CreaturePose.STAND).setBedDirection(-1).moveTo(at, heading);
         truePos = at;
@@ -191,7 +226,7 @@ final class StoppedSession {
         }
 
         // It moves like you: smoothly, at a walk, a little faster the longer this goes on.
-        double speed = 0.135 * (1.0 + Math.min(age, 2400) / 6000.0);
+        double speed = 0.2 * (1.0 + Math.min(age, 2400) / 9600.0);
         Vec3 pos = here();
         double budget = speed;
         while (budget > 0.0 && !path.isEmpty()) {

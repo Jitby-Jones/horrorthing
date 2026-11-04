@@ -183,7 +183,11 @@ public final class Lapses {
         int run = state.consecutiveKept();
         state.recordKeptNight();
         // Each consecutive kept night pushes it back less. Every one of them is owed.
-        Haunt.gain(player, state, (float) (-0.06 * Math.pow(0.7, run)));
+        Haunt.gain(player, state, (float) (-0.08 * Math.pow(0.7, run)));
+        // And the morning film in that room goes back a frame.
+        if (state.bed() != null) {
+            state.advanceFilm(Spots.bedHead(player.serverLevel(), state.bed()), -1);
+        }
         Advancements.award(player, "night_owl");
     }
 
@@ -196,10 +200,12 @@ public final class Lapses {
         Household.send(player, io.github.jitbyjones.thewake.registry.WakeRegistry.BREATH.get(), net.minecraft.sounds.SoundSource.AMBIENT,
                 player.getEyePosition(), 0.6F * WakeConfig.get().soundVolume, 0.95F);
         state.lapse();
-        player.getFoodData().addExhaustion(5.0F);
         ServerLevel level = player.serverLevel();
+        // An hour the first time today, two the second, three after that.
+        int times = Math.min(3, state.touch(Haunt.day(level)));
+        player.getFoodData().addExhaustion(5.0F * times);
         if (player.server.isSingleplayer() && level.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT)) {
-            level.setDayTime(level.getDayTime() + 1000L);
+            level.setDayTime(level.getDayTime() + 1000L * times);
         }
     }
 }

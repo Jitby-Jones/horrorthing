@@ -51,11 +51,30 @@ public final class Hunter {
         Field field;
         int fieldAge;
         int stepCooldown;
-        boolean frameB;
         int steps;
+        /** The stretch it is walking: from one cell to the next, how far along, how far in all. */
+        @Nullable
+        Vec3 from;
+        @Nullable
+        Vec3 to;
+        double progress;
+        double travelled;
+        int cells = 1;
+        int frameClock;
         boolean movedThisLapse;
         boolean hunting;
+        /** Lapse tick when it got to arm's length, or -1. */
+        int reachedAt = -1;
+        /** The lapse began with it already within reach: you opened the menu anyway. */
+        boolean startedInReach;
+        int lightCheck;
     }
+
+    /** How far from home it can find you. Away from your bed, menus are only menus. */
+    private static final double HOME_RANGE = 48.0;
+    /** Blocks it has to be within, and how long it waits there with the menu still open. */
+    private static final double REACH = 2.2;
+    private static final int REACH_GRACE = 100;
 
     private Hunter() {}
 
@@ -140,8 +159,12 @@ public final class Hunter {
                     TheWake.LOG.error("Hunt failed for {}", player.getGameProfile().getName(), e);
                     release(player, true);
                 }
-                hunting = creature(player) != null;
+                // The tape motor runs through every lapse it could be using, not only when it is.
+                hunting = true;
             }
+        } else if (++hunt.lightCheck >= 20) {
+            hunt.lightCheck = 0;
+            torchlight(player, hunt);
         }
         if (hunting != hunt.hunting) {
             hunt.hunting = hunting;
@@ -181,7 +204,33 @@ public final class Hunter {
             return false;
         }
         Stage stage = state.stage();
-        return stage.atLeast(Stage.SIGHTINGS) && !stage.atLeast(Stage.HUSH) && !Beats.hush(state, player.serverLevel());
+        if (!stage.atLeast(Stage.SIGHTINGS) || stage.atLeast(Stage.HUSH) || Beats.hush(state, player.serverLevel())) {
+            return false;
+        }
+        // It haunts the house, not you: far from your bed a menu is only a menu.
+        BlockPos home = state.bed();
+        return home == null || home.distToCenterSqr(player.position()) < HOME_RANGE * HOME_RANGE;
+    }
+
+    /** A light put down at its feet: it is not there any more, the next moment you look. */
+    private static void torchlight(ServerPlayer player, Hunt hunt) {
+        Phantom creature = creature(player);
+        if (creature == null || creature.scale() != 1.0F) {
+            return;
+        }
+        BlockPos at = BlockPos.containing(creature.pos()).above();
+        if (player.serverLevel().getBrightness(net.minecraft.world.level.LightLayer.BLOCK, at) >= 12) {
+            Phantoms.dissolve(player, creature, true);
+            hunt.creature = null;
+        }
+    }
+
+    /** Dark enough for it to come from: no more light than a monster spawns in, give or take. */
+    static boolean dark(ServerLevel level, BlockPos feet) {
+        BlockPos head = feet.above();
+        int block = level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, head);
+        int sky = level.getBrightness(net.minecraft.world.level.LightLayer.SKY, head) - level.getSkyDarken();
+        return Math.max(block, sky) <= 7;
     }
 
     private static void begin(ServerPlayer player, HauntState state, Hunt hunt) {
@@ -191,10 +240,24 @@ public final class Hunter {
         hunt.lapseTicks = 0;
         hunt.movedThisLapse = false;
         hunt.stepCooldown = 0;
+        hunt.to = null;
+        hunt.frameClock = 0;
+        hunt.reachedAt = -1;
+        Phantom creature = creature(player);
+        hunt.startedInReach = creature != null && creature.scale() == 1.0F && hunt.lapse == Lapse.MENU
+                && creature.pos().distanceTo(player.position()) <= REACH;
     }
 
     private static void end(ServerPlayer player, HauntState state, Hunt hunt, Lapse was) {
         int seconds = hunt.lapseTicks / 20;
+        Phantom near = creature(player);
+        if (was == Lapse.PAUSE && near != null && hunt.reachedAt >= 0 && near.pos().distanceTo(player.position()) <= REACH
+                && Attack.allowed(player, state)) {
+            // It never tears the pause screen away. It waits for you to press play.
+            Attack.begin(player, state, near);
+            hunt.creature = null;
+            return;
+        }
         if (hunt.creature != null && !hunt.creature.isRemoved() && hunt.movedThisLapse && was != Lapse.SLEEP) {
             settle(player, state, hunt);
         }
@@ -222,22 +285,25 @@ public final class Hunter {
     // ---- moving ---------------------------------------------------------------------------
 
     private static void advance(ServerPlayer player, HauntState state, Hunt hunt) {
-        if (--hunt.stepCooldown > 0) {
-            return;
-        }
         Stage stage = state.stage();
         Phantom creature = creature(player);
         if (creature == null || creature.pos().distanceToSqr(player.position()) > 48.0 * 48.0 || creature.scale() != 1.0F) {
+            if (--hunt.stepCooldown > 0) {
+                return;
+            }
             if (hunt.lapseTicks < arrivalDelay(stage, hunt.lapse)) {
                 hunt.stepCooldown = 1;
                 return;
             }
             arrive(player, state, hunt);
-            hunt.stepCooldown = interval(stage, hunt.lapse) * 2;
+            hunt.stepCooldown = interval(stage, hunt.lapse);
             return;
         }
-        hunt.stepCooldown = interval(stage, hunt.lapse);
-        step(player, state, hunt, creature);
+        if (hunt.stepCooldown > 0) {
+            hunt.stepCooldown--;
+            return;
+        }
+        walk(player, state, hunt, creature);
     }
 
     /** Ticks per block. Sleep is fast: it has a few seconds of fading screen to reach you. */
@@ -247,6 +313,19 @@ public final class Hunter {
         }
         int base = stage.atLeast(Stage.HUNT) ? 11 : stage.atLeast(Stage.ROUTINE) ? 16 : 24;
         return lapse == Lapse.IDLE ? base * 3 / 2 : base;
+    }
+
+    /**
+     * Ticks between frames: it is shot in stop-motion, a few drawings a second. Asleep the film runs
+     * faster; in a menu it is slow and deliberate.
+     */
+    private static int frameTicks(Lapse lapse) {
+        return lapse == Lapse.SLEEP ? 2 : 3;
+    }
+
+    /** Blocks a full eight-frame cycle of each clip carries it. */
+    private static double stride(CreaturePose pose) {
+        return pose == CreaturePose.CRAWL ? 1.25 : pose == CreaturePose.STOOP_WALK ? 1.6 : 2.0;
     }
 
     private static int arrivalDelay(Stage stage, Lapse lapse) {
@@ -265,7 +344,7 @@ public final class Hunter {
     }
 
     private static Field field(ServerPlayer player, Hunt hunt) {
-        BlockPos root = player.blockPosition();
+        BlockPos root = Field.feet(player);
         if (hunt.field == null || hunt.field.root.distSqr(root) > 4.0 || ++hunt.fieldAge > 400) {
             hunt.field = Field.build(player.serverLevel(), root, 32, 7000);
             hunt.fieldAge = 0;
@@ -280,24 +359,30 @@ public final class Hunter {
             return;
         }
         RandomSource random = player.getRandom();
-        boolean side = random.nextFloat() < 0.6F;
+        ServerLevel level = player.serverLevel();
+        // Mostly where you can see it come, at the side of the screen beside the menu; sometimes
+        // behind you. Always out of somewhere dark.
+        boolean side = random.nextFloat() < 0.8F;
         int min = state.stage().atLeast(Stage.HUNT) ? 13 : 16;
         int max = min + 10;
         BlockPos cell = field.pick(min, max, key -> {
             BlockPos p = BlockPos.of(key);
             float a = Appearances.angleFromView(player, Vec3.atBottomCenterOf(p).add(0.0, 1.8, 0.0));
-            return side ? a > 40.0F && a < 75.0F : a > 100.0F;
+            return (side ? a > 26.0F && a < 48.0F : a > 100.0F) && dark(level, p);
         }, random);
         if (cell == null) {
-            cell = field.pick(min, max, key -> Appearances.angleFromView(player, Vec3.atCenterOf(BlockPos.of(key))) > 40.0F, random);
+            cell = field.pick(min, max + 6, key -> Appearances.angleFromView(player, Vec3.atCenterOf(BlockPos.of(key))) > 26.0F
+                    && dark(level, BlockPos.of(key)), random);
         }
         if (cell == null) {
             return;
         }
         Vec3 at = jitter(cell, random);
-        Phantom creature = Appearances.still(player, cell, Spots.yawTowards(at, player.position()), CreaturePose.WALK_A);
+        Phantom creature = Appearances.still(player, cell, Spots.yawTowards(at, player.position()), CreaturePose.WALK);
         creature.moveTo(at, creature.yaw()).setTouch(0.0, false);
         adopt(player, creature);
+        hunt.from = null;
+        hunt.to = null;
         hunt.movedThisLapse = true;
         sound(player, creature, WakeRegistry.CRACK.get(), 0.7F, 0.9F + random.nextFloat() * 0.2F);
         if (DemoScript.ENABLED) {
@@ -305,10 +390,88 @@ public final class Hunter {
         }
     }
 
-    private static void step(ServerPlayer player, HauntState state, Hunt hunt, Phantom creature) {
+    /**
+     * One tick of walking. It travels a little every tick, but you only ever see it every few
+     * ticks, a frame at a time, its walk cycle advancing with the ground it covers.
+     */
+    private static void walk(ServerPlayer player, HauntState state, Hunt hunt, Phantom creature) {
+        if (hunt.to == null || hunt.progress >= 1.0) {
+            if (!plan(player, state, hunt, creature)) {
+                return;
+            }
+        }
+        double length = Math.max(0.05, hunt.from.distanceTo(hunt.to));
+        double speed = hunt.cells / (double) interval(state.stage(), hunt.lapse);
+        double before = hunt.progress;
+        CreaturePose clip = creature.pose().isMoving() ? creature.pose() : CreaturePose.WALK;
+        double perFrame = stride(clip) / clip.frames;
+        int frameBefore = (int) Math.floor(hunt.travelled / perFrame);
+        hunt.progress = Math.min(1.0, hunt.progress + speed / length);
+        hunt.travelled += (hunt.progress - before) * length;
+        // Stop-motion: nothing moves until the next drawing, and then the pose and the place change
+        // together, a quarter of a stride at a time.
+        if ((int) Math.floor(hunt.travelled / perFrame) == frameBefore && hunt.progress < 1.0) {
+            return;
+        }
+        frame(player, hunt, creature);
+    }
+
+    /** Shows where it has got to: a new frame, a new place. */
+    private static void frame(ServerPlayer player, Hunt hunt, Phantom creature) {
+        Vec3 at = hunt.from.lerp(hunt.to, hunt.progress);
+        Vec3 heading = hunt.to.subtract(hunt.from);
+        float yaw = heading.horizontalDistanceSqr() > 1.0E-4 ? Spots.yawTowards(hunt.from, hunt.to) : creature.yaw();
+        // Headroom where it is about to be: tall rooms it walks, three blocks it stoops, doorways it crawls.
+        BlockPos ahead = BlockPos.containing(at.add(heading.lengthSqr() > 1.0E-6 ? heading.normalize().scale(0.45) : Vec3.ZERO));
+        int room = Math.min(Field.clearance(player.serverLevel(), ahead, 4), Field.clearance(player.serverLevel(), BlockPos.containing(at), 4));
+        CreaturePose clip = room >= 4 ? CreaturePose.WALK : room == 3 ? CreaturePose.STOOP_WALK : CreaturePose.CRAWL;
+        int frame = (int) Math.floor(hunt.travelled / stride(clip) * clip.frames);
+        int previous = creature.pose() == clip ? creature.frame() : -1;
+        creature.moveTo(at, yaw).setPose(clip, frame);
+        // Its body faces the way it walks; its face is on you.
+        float toPlayer = Spots.yawTowards(at, player.position());
+        creature.setHead(Mth.clamp(Mth.wrapDegrees(toPlayer - yaw), -110.0F, 110.0F), 0.0F);
+        hunt.movedThisLapse = true;
+        // A foot comes down on frames 0 and 4.
+        int now = creature.frame();
+        if (previous != now && (now == 0 || now == clip.frames / 2 || (previous >= 0 && crossed(previous, now, clip.frames)))) {
+            RandomSource random = player.getRandom();
+            double d = at.distanceTo(player.position());
+            sound(player, creature, WakeRegistry.STEP.get(), (float) Mth.clamp(1.1 - d / 30.0, 0.15, 1.0), 0.85F + random.nextFloat() * 0.25F);
+            if (random.nextInt(7) == 0) {
+                sound(player, creature, WakeRegistry.CRACK.get(), 0.6F, 0.8F + random.nextFloat() * 0.4F);
+            }
+            if (d < 10.0 && random.nextInt(3) == 0) {
+                sound(player, creature, WakeRegistry.WET_BREATH.get(), 0.55F, 0.85F + random.nextFloat() * 0.2F);
+            }
+        }
+    }
+
+    /** True if going from frame a to frame b passed a footfall (frame 0 or the half cycle). */
+    private static boolean crossed(int a, int b, int frames) {
+        int half = frames / 2;
+        for (int f = (a + 1) % frames; f != (b + 1) % frames; f = (f + 1) % frames) {
+            if (f == 0 || f == half) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * At a cell: decides what it does next. Returns false when it is not walking (it attacked, it
+     * waits, it went another way).
+     */
+    private static boolean plan(ServerPlayer player, HauntState state, Hunt hunt, Phantom creature) {
         ServerLevel level = player.serverLevel();
         RandomSource random = player.getRandom();
         Field field = field(player, hunt);
+        if (field.size() == 0) {
+            // You are somewhere it cannot find a floor to (swimming, say). It waits where it is.
+            hunt.to = null;
+            hunt.stepCooldown = 20;
+            return false;
+        }
         BlockPos cell = BlockPos.containing(creature.pos());
         if (!field.contains(cell)) {
             BlockPos near = field.nearest(cell, 3.5);
@@ -316,7 +479,8 @@ public final class Hunter {
                 // It cannot reach you from there. It comes another way.
                 Phantoms.remove(player, creature);
                 hunt.creature = null;
-                return;
+                hunt.to = null;
+                return false;
             }
             cell = near;
         }
@@ -324,56 +488,69 @@ public final class Hunter {
         boolean canAttack = Attack.allowed(player, state);
         int closest = closest(state.stage(), canAttack);
         if (distance <= Math.max(1, closest)) {
+            hunt.to = null;
             if (canAttack && distance <= 1) {
-                Attack.begin(player, state, creature);
-                hunt.creature = null;
-                return;
+                // Arm's length. It stops there, its jaw a frame open, and waits. It bites if you
+                // opened the menu with it already this close, or if you stay in the menu now that
+                // it is. Never in your sleep, never while you are away, never through the pause
+                // screen: that waits for you to press play.
+                if (hunt.reachedAt < 0) {
+                    hunt.reachedAt = hunt.lapseTicks;
+                    float yaw = Spots.yawTowards(creature.pos(), player.position());
+                    creature.moveTo(creature.pos(), yaw).setPose(Appearances.fitting(level, cell, CreaturePose.REACH, random))
+                            .setHead(0.0F, 0.0F).setJaw(14.0F);
+                    hunt.movedThisLapse = true;
+                    sound(player, creature, WakeRegistry.WET_BREATH.get(), 0.7F, 0.8F);
+                }
+                if (hunt.lapse == Lapse.MENU && (hunt.startedInReach || hunt.lapseTicks - hunt.reachedAt >= REACH_GRACE)) {
+                    Attack.begin(player, state, creature);
+                    hunt.creature = null;
+                }
+                hunt.stepCooldown = 5;
+                return false;
             }
             // As close as it may come. It stands there and waits for you to look.
             float yaw = Spots.yawTowards(creature.pos(), player.position());
             creature.setYaw(yaw);
-            if (creature.pose().isWalkFrame() || creature.pose().isCrawlFrame()) {
+            if (creature.pose().isMoving()) {
                 creature.setPose(Appearances.fitting(level, cell, distance <= 3 ? CreaturePose.REACH : CreaturePose.STAND, random));
+                creature.setHead(0.0F, 0.0F);
                 hunt.movedThisLapse = true;
             }
+            hunt.stepCooldown = 10;
             if (random.nextInt(6) == 0) {
                 sound(player, creature, WakeRegistry.WET_BREATH.get(), 0.5F, 0.85F + random.nextFloat() * 0.2F);
             }
-            return;
+            return false;
         }
         BlockPos next = field.toward(cell);
         if (next == null) {
-            return;
+            hunt.to = null;
+            return false;
         }
-        // Two cells per step when it is far: it covers ground while you are away.
+        hunt.cells = 1;
+        // It covers ground quickly while it is far.
         if (distance > 12) {
             BlockPos further = field.toward(next);
             if (further != null && field.distance(further) > closest) {
                 next = further;
+                hunt.cells = 2;
             }
         }
-        BlockPos ahead = field.toward(next);
-        Vec3 at = jitter(next, random);
-        Vec3 facing = ahead != null && !ahead.equals(next) ? Vec3.atBottomCenterOf(ahead) : player.position();
-        float yaw = Spots.yawTowards(at, facing);
-        hunt.frameB = !hunt.frameB;
-        int room = Field.clearance(level, next, 3);
-        CreaturePose pose = room >= 3 ? (hunt.frameB ? CreaturePose.WALK_B : CreaturePose.WALK_A)
-                : (hunt.frameB ? CreaturePose.CRAWL_B : CreaturePose.CRAWL_A);
-        creature.moveTo(at, yaw).setPose(pose);
-        // Its body faces the way it walks; its face is on you.
-        float toPlayer = Spots.yawTowards(at, player.position());
-        creature.setHead(Mth.clamp(Mth.wrapDegrees(toPlayer - yaw), -110.0F, 110.0F), 0.0F);
-        hunt.movedThisLapse = true;
+        hunt.from = creature.pos();
+        hunt.to = jitter(next, random);
+        hunt.progress = 0.0;
         hunt.steps++;
-        double d = at.distanceTo(player.position());
-        sound(player, creature, WakeRegistry.STEP.get(), (float) Mth.clamp(1.1 - d / 30.0, 0.15, 1.0), 0.85F + random.nextFloat() * 0.25F);
-        if (random.nextInt(7) == 0) {
-            sound(player, creature, WakeRegistry.CRACK.get(), 0.6F, 0.8F + random.nextFloat() * 0.4F);
+        // A closed door in the way costs it a few seconds, and you hear the latch.
+        if (Field.closedDoor(level, next) || Field.closedDoor(level, next.above())) {
+            BlockPos door = Field.closedDoor(level, next) ? next : next.above();
+            hunt.stepCooldown = 40;
+            Household.send(player, net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN, SoundSource.BLOCKS, Vec3.atCenterOf(door),
+                    0.7F * WakeConfig.get().soundVolume, 0.85F);
+            Director.schedule(46, () -> Household.send(player, net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, SoundSource.BLOCKS,
+                    Vec3.atCenterOf(door), 0.6F * WakeConfig.get().soundVolume, 0.8F));
         }
-        if (d < 10.0 && random.nextInt(3) == 0) {
-            sound(player, creature, WakeRegistry.WET_BREATH.get(), 0.55F, 0.85F + random.nextFloat() * 0.2F);
-        }
+        return true;
     }
 
     /** Not quite the middle of the block: nothing about it is tidy. */
@@ -411,6 +588,15 @@ public final class Hunter {
             }
             cell = aside;
             creature.moveTo(jitter(aside, random), creature.yaw());
+        }
+        if (!dark(level, cell) && level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, cell.above()) >= 11) {
+            int d0 = Math.max(1, field.distance(cell));
+            BlockPos dim = field.pick(Math.max(1, d0 - 6), d0 + 6, key -> dark(level, BlockPos.of(key))
+                    && Appearances.angleFromView(player, Vec3.atBottomCenterOf(BlockPos.of(key)).add(0.0, 2.2, 0.0)) > 26.0F, random);
+            if (dim != null) {
+                cell = dim;
+                creature.moveTo(jitter(dim, random), creature.yaw());
+            }
         }
         Vec3 at = creature.pos();
         float yaw = Spots.yawTowards(at, player.position());
@@ -470,10 +656,13 @@ public final class Hunter {
         if (creature == null) {
             return;
         }
-        int steps = Mth.clamp(millis / (interval(state.stage(), Lapse.MENU) * 50), 1, 8);
-        for (int i = 0; i < steps && creature(player) != null; i++) {
-            step(player, state, hunt, creature);
+        int ticks = Mth.clamp(millis / 50, 1, 8 * interval(state.stage(), Lapse.MENU));
+        Lapse was = hunt.lapse;
+        hunt.lapse = Lapse.MENU;
+        for (int i = 0; i < ticks && creature(player) != null; i++) {
+            walk(player, state, hunt, creature);
         }
+        hunt.lapse = was;
         if (creature(player) != null) {
             settle(player, state, hunt);
         }

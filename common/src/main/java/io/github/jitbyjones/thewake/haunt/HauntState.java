@@ -32,6 +32,18 @@ public final class HauntState {
     private int caughtCount;
     private long hushDay = -1L;
     private long lastAttackDay = -1L;
+    /** Game time before which it will not bite again (two to six minutes after the last bite). */
+    private long nextAttackTick;
+    /** Walking into it today, and how often: each time costs more. */
+    private long touchDay = -1L;
+    private int touchCount;
+    /** Things it has renamed: a handful in a whole haunting. */
+    private int captions;
+    /**
+     * The mornings, as a film, one per bed: how many frames of its way from the door to your
+     * pillow it has shot in that room. A skipped night adds one; a kept night takes one away.
+     */
+    private final java.util.LinkedHashMap<Long, Integer> films = new java.util.LinkedHashMap<>();
     private long lastGiantDay = -1L;
 
     // pacing --------------------------------------------------------------------------------
@@ -174,6 +186,38 @@ public final class HauntState {
     public long hushDay() { return hushDay; }
     /** In-game day of its last attack: one a day at most. */
     public long lastAttackDay() { return lastAttackDay; }
+    public long nextAttackTick() { return nextAttackTick; }
+    public void setNextAttackTick(long tick) { nextAttackTick = tick; }
+    public int captions() { return captions; }
+
+    public int film(BlockPos bed) {
+        return bed == null ? 0 : films.getOrDefault(bed.asLong(), 0);
+    }
+
+    /** Moves the film for this bed on (or back) and returns the frame it is on now. */
+    public int advanceFilm(BlockPos bed, int by) {
+        if (bed == null) {
+            return 0;
+        }
+        long key = bed.asLong();
+        int frame = Math.max(0, films.getOrDefault(key, 0) + by);
+        films.remove(key);
+        films.put(key, frame);
+        while (films.size() > 8) {
+            films.remove(films.keySet().iterator().next());
+        }
+        return frame;
+    }
+    public void addCaption() { captions++; }
+
+    /** Counts a touch today and returns how many there have been, this one included. */
+    public int touch(long day) {
+        if (touchDay != day) {
+            touchDay = day;
+            touchCount = 0;
+        }
+        return ++touchCount;
+    }
     public void setLastAttackDay(long day) { lastAttackDay = day; }
     public long lastGiantDay() { return lastGiantDay; }
     public void setLastGiantDay(long day) { lastGiantDay = day; }
@@ -377,6 +421,18 @@ public final class HauntState {
         tag.putInt("Caught", caughtCount);
         tag.putLong("LikenessDay", hushDay);
         tag.putLong("LastAttackDay", lastAttackDay);
+        tag.putLong("NextAttack", nextAttackTick);
+        tag.putLong("TouchDay", touchDay);
+        tag.putInt("Touches", touchCount);
+        tag.putInt("Captions", captions);
+        ListTag filmList = new ListTag();
+        for (java.util.Map.Entry<Long, Integer> e : films.entrySet()) {
+            CompoundTag f = new CompoundTag();
+            f.putLong("Bed", e.getKey());
+            f.putInt("Frame", e.getValue());
+            filmList.add(f);
+        }
+        tag.put("Films", filmList);
         tag.putLong("LastGiantDay", lastGiantDay);
         tag.putLong("GainDay", gainDay);
         tag.putFloat("GainedToday", gainedToday);
@@ -441,6 +497,14 @@ public final class HauntState {
         s.caughtCount = tag.getInt("Caught");
         s.hushDay = tag.contains("LikenessDay") ? tag.getLong("LikenessDay") : -1L;
         s.lastAttackDay = tag.contains("LastAttackDay") ? tag.getLong("LastAttackDay") : -1L;
+        s.nextAttackTick = tag.getLong("NextAttack");
+        s.touchDay = tag.contains("TouchDay") ? tag.getLong("TouchDay") : -1L;
+        s.touchCount = tag.getInt("Touches");
+        s.captions = tag.getInt("Captions");
+        for (Tag t : tag.getList("Films", Tag.TAG_COMPOUND)) {
+            CompoundTag f = (CompoundTag) t;
+            s.films.put(f.getLong("Bed"), f.getInt("Frame"));
+        }
         s.lastGiantDay = tag.contains("LastGiantDay") ? tag.getLong("LastGiantDay") : -1L;
         s.gainDay = tag.contains("GainDay") ? tag.getLong("GainDay") : -1L;
         s.gainedToday = tag.getFloat("GainedToday");

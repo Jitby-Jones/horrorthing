@@ -25,7 +25,7 @@ public final class Gaze {
     /** Inside this many degrees of the centre of view, it is being watched: nothing moves. */
     public static final float WATCHED = 22.0F;
     /** Beyond this, it is in the corner of your eye. */
-    public static final float PERIPHERY = 30.0F;
+    public static final float PERIPHERY = 36.0F;
 
     public float lookYaw;
     public float lookPitch;
@@ -35,6 +35,19 @@ public final class Gaze {
     public float twitchPitch;
     public float twitchRoll;
     public float twitchJaw;
+    /** Degrees its fingers curl, and its shoulder hitches, in the corner of your eye. */
+    public float twitchFingers;
+    public float twitchShrug;
+    /**
+     * The face it is wearing, like a stop-motion puppet's replacement faces: how far its lids are
+     * down, whether its eyes are on you, and how far apart they look. Watched, it wears the first
+     * face; in the corner of your eye it swaps to others.
+     */
+    public float lids = 0.2F;
+    public float eyesOnYou = 1.0F;
+    public float eyesApart;
+    private float targetFingers;
+    private float targetShrug;
     private float targetYaw;
     private float targetPitch;
     private float targetRoll;
@@ -92,7 +105,7 @@ public final class Gaze {
         boolean scripted = p.scriptedHead() || (p.flags & Phantom.FLAG_NO_TWITCH) != 0 || p.mode != Phantom.Mode.STILL;
         if (scripted) {
             looking = false;
-            twitchYaw = twitchPitch = twitchRoll = twitchJaw = 0.0F;
+            twitchYaw = twitchPitch = twitchRoll = twitchJaw = twitchFingers = twitchShrug = 0.0F;
             return;
         }
         if (unseenTicks >= 8 && !turned) {
@@ -107,18 +120,32 @@ public final class Gaze {
         }
         if (visible && angle > PERIPHERY && distance < 40.0 * p.scale) {
             if (--nextTwitch <= 0) {
-                boolean big = random.nextFloat() < 0.12F;
-                targetYaw = (random.nextFloat() - 0.5F) * (big ? 40.0F : 16.0F);
-                targetPitch = (random.nextFloat() - 0.5F) * (big ? 24.0F : 10.0F);
-                targetRoll = (random.nextFloat() - 0.5F) * (big ? 70.0F : 22.0F);
-                targetJaw = random.nextFloat() < 0.35F ? random.nextFloat() * (big ? 28.0F : 9.0F) : 0.0F;
-                nextTwitch = big ? 14 + random.nextInt(16) : 2 + random.nextInt(9);
+                // Rare and small: a new face, a finger, the jaw. Once in a while, the head.
+                boolean big = random.nextFloat() < 0.08F;
+                targetYaw = big ? (random.nextFloat() - 0.5F) * 30.0F : targetYaw * 0.5F;
+                targetPitch = big ? (random.nextFloat() - 0.5F) * 16.0F : targetPitch * 0.5F;
+                targetRoll = big ? (random.nextFloat() - 0.5F) * 40.0F : (random.nextFloat() - 0.5F) * 6.0F;
+                targetJaw = random.nextFloat() < 0.3F ? random.nextFloat() * (big ? 40.0F : 10.0F) : 0.0F;
+                lids = random.nextFloat() < 0.5F ? 0.2F + random.nextFloat() * 0.6F : 0.0F;
+                eyesOnYou = random.nextFloat() < 0.6F ? 1.0F : 0.0F;
+                eyesApart = random.nextFloat() < 0.35F ? (random.nextFloat() - 0.5F) * 30.0F : 0.0F;
+                targetFingers = random.nextFloat() < 0.5F ? (random.nextFloat() - 0.3F) * (big ? 50.0F : 20.0F) : targetFingers * 0.3F;
+                targetShrug = random.nextFloat() < 0.25F ? (random.nextFloat() - 0.4F) * (big ? 22.0F : 9.0F) : 0.0F;
+                nextTwitch = big ? 30 + random.nextInt(30) : 12 + random.nextInt(30);
             }
             // Jerky, not smooth: most of the way there in one tick.
             twitchYaw += (targetYaw - twitchYaw) * 0.7F;
             twitchPitch += (targetPitch - twitchPitch) * 0.7F;
             twitchRoll += (targetRoll - twitchRoll) * 0.7F;
             twitchJaw += (targetJaw - twitchJaw) * 0.7F;
+            twitchFingers += (targetFingers - twitchFingers) * 0.8F;
+            twitchShrug += (targetShrug - twitchShrug) * 0.8F;
+        }
+        if (visible && angle < WATCHED) {
+            // Looked at: the first face again. Almost.
+            lids = 0.2F;
+            eyesOnYou = 1.0F;
+            eyesApart *= 0.3F;
         }
         // Watched directly (angle < WATCHED) or in between: hold exactly as it is.
     }
@@ -132,19 +159,17 @@ public final class Gaze {
     public void cut() {
         looking = false;
         turned = false;
-        twitchYaw = twitchPitch = twitchRoll = twitchJaw = 0.0F;
-        targetYaw = targetPitch = targetRoll = targetJaw = 0.0F;
+        twitchYaw = twitchPitch = twitchRoll = twitchJaw = twitchFingers = twitchShrug = 0.0F;
+        targetYaw = targetPitch = targetRoll = targetJaw = targetFingers = targetShrug = 0.0F;
     }
 
     /** Head angles (relative to the pose) that point its face at the camera. */
     private void faceCamera(ClientPhantom p, Vec3 eye) {
-        CreatureModel model = CreatureRenderer.model();
-        if (model == null) {
+        Vector3f fwd = CreatureRenderer.attachment(p.pose, p.frame, "headForward");
+        Vector3f headLocal = CreatureRenderer.attachment(p.pose, p.frame, "head");
+        if (fwd == null || headLocal == null) {
             return;
         }
-        CreatureModel.Pose pose = model.pose(p.pose);
-        Vector3f fwd = pose.pivot(CreatureModel.HEAD_FORWARD);
-        Vector3f headLocal = pose.pivot(CreatureModel.HEAD);
         // Model -> world: rotate by the body's yaw.
         float yawRad = (float) Math.toRadians(-p.yaw);
         float cos = Mth.cos(yawRad);
