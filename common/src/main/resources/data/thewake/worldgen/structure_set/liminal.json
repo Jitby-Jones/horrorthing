@@ -1,0 +1,30 @@
+{
+  "structures": [
+    {
+      "structure": "thewake:watchtower",
+      "weight": 3
+    },
+    {
+      "structure": "thewake:video_store",
+      "weight": 2
+    },
+    {
+      "structure": "thewake:waiting_room",
+      "weight": 2
+    },
+    {
+      "structure": "thewake:bedroom",
+      "weight": 3
+    },
+    {
+      "structure": "thewake:hallway",
+      "weight": 2
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 12,
+    "separation": 4,
+    "salt": 1857296402
+  }
+}

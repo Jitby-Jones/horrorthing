@@ -200,7 +200,12 @@ public final class Hunter {
     }
 
     private static boolean hunts(ServerPlayer player, HauntState state) {
-        if (!Haunt.awake(state) || !Haunt.eligible(player) || StoppedManager.isIn(player) || player.isCreative()) {
+        if (LastNight.ejecting(player)) {
+            // The end of it: the old rule, and nothing else.
+            return Haunt.eligible(player) && !player.isCreative();
+        }
+        if (!Haunt.awake(state) || !Haunt.eligible(player) || StoppedManager.isIn(player) || player.isCreative() || state.chasing
+                || Temper.removed(state) || LastNight.active(player)) {
             return false;
         }
         Stage stage = state.stage();
@@ -260,6 +265,9 @@ public final class Hunter {
         }
         if (hunt.creature != null && !hunt.creature.isRemoved() && hunt.movedThisLapse && was != Lapse.SLEEP) {
             settle(player, state, hunt);
+        }
+        if (hunt.movedThisLapse && (was == Lapse.MENU || was == Lapse.PAUSE)) {
+            Torment.lostTime(player, state, seconds);
         }
         // A long menu or pause is lost time like any other.
         if ((was == Lapse.MENU || was == Lapse.PAUSE) && seconds >= 20 && Haunt.awake(state) && Haunt.eligible(player)) {

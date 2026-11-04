@@ -47,10 +47,12 @@ public final class WakeHooks {
     public static void onJoin(ServerPlayer player) {
         Lapses.onLogin(player);
         io.github.jitbyjones.thewake.haunt.DemoScript.onJoin(player);
+        io.github.jitbyjones.thewake.haunt.DemoExpansion.onJoin(player);
     }
 
     public static void onLeave(ServerPlayer player) {
         Lapses.onLogout(player);
+        io.github.jitbyjones.thewake.haunt.LastNight.onLogout(player);
     }
 
     public static void onDeath(ServerPlayer player) {
@@ -70,6 +72,14 @@ public final class WakeHooks {
         BlockPos head = pos;
         if (state.getBlock() instanceof BedBlock && state.getValue(BedBlock.PART) == BedPart.FOOT) {
             head = pos.relative(state.getValue(BedBlock.FACING));
+        }
+        // The bed in the woods. You lie down, and you are somewhere else.
+        if (io.github.jitbyjones.thewake.world.LiminalBeds.isStrangeBed(player.serverLevel(), head)) {
+            HauntState haunt = Haunt.state(player);
+            if (!io.github.jitbyjones.thewake.haunt.Temper.removed(haunt) && Haunt.awake(haunt)
+                    && io.github.jitbyjones.thewake.world.TheSet.enter(player)) {
+                return Player.BedSleepingProblem.OTHER_PROBLEM;
+            }
         }
         if (StoppedManager.isKeptBed(player, head)) {
             player.displayClientMessage(Component.translatable("block.minecraft.bed.occupied"), true);
@@ -98,6 +108,12 @@ public final class WakeHooks {
 
     /** Right-click on a block. Returns true if the interaction was consumed. */
     public static boolean onUseBlock(ServerPlayer player, BlockPos pos) {
+        if (io.github.jitbyjones.thewake.haunt.WakeDimensions.isOurs(player.level())
+                && player.level().getBlockState(pos).getBlock() instanceof BedBlock) {
+            // A prop. You cannot sleep on a set.
+            player.displayClientMessage(net.minecraft.network.chat.Component.translatable("block.thewake.prop_bed"), true);
+            return true;
+        }
         return StoppedManager.onUseBlock(player, pos);
     }
 

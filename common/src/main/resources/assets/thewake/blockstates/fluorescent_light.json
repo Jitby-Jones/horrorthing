@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=true": {
+      "model": "thewake:block/fluorescent_light"
+    },
+    "lit=false": {
+      "model": "thewake:block/fluorescent_light_off"
+    }
+  }
+}

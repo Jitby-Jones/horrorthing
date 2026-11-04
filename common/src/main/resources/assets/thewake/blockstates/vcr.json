@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north,tape=false": {
+      "model": "thewake:block/vcr"
+    },
+    "facing=north,tape=true": {
+      "model": "thewake:block/vcr_tape"
+    },
+    "facing=east,tape=false": {
+      "model": "thewake:block/vcr",
+      "y": 90
+    },
+    "facing=east,tape=true": {
+      "model": "thewake:block/vcr_tape",
+      "y": 90
+    },
+    "facing=south,tape=false": {
+      "model": "thewake:block/vcr",
+      "y": 180
+    },
+    "facing=south,tape=true": {
+      "model": "thewake:block/vcr_tape",
+      "y": 180
+    },
+    "facing=west,tape=false": {
+      "model": "thewake:block/vcr",
+      "y": 270
+    },
+    "facing=west,tape=true": {
+      "model": "thewake:block/vcr_tape",
+      "y": 270
+    }
+  }
+}

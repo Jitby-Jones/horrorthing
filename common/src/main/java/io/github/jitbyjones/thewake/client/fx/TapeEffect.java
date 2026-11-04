@@ -57,6 +57,10 @@ public final class TapeEffect {
         if (ClientState.hunting) {
             amount = Math.max(amount, 0.5F);
         }
+        if (ClientState.chasing) {
+            amount = Math.max(amount, 0.62F);
+        }
+        amount = Math.max(amount, io.github.jitbyjones.thewake.client.render.WorldRender.bodyWear());
         if (mc.screen instanceof PauseScreen && PauseTape.tapeShowing()) {
             amount = Math.max(amount, 0.65F);
         }

@@ -1,41 +1,417 @@
 {
   "room_tone": {
-    "sounds": [ { "name": "thewake:room_tone" } ],
+    "sounds": [
+      {
+        "name": "thewake:room_tone"
+      }
+    ],
     "subtitle": "subtitles.thewake.room_tone"
   },
   "breath": {
-    "sounds": [ { "name": "thewake:breath" } ],
+    "sounds": [
+      {
+        "name": "thewake:breath"
+      }
+    ],
     "subtitle": "subtitles.thewake.breath"
   },
   "stillness": {
-    "sounds": [ { "name": "thewake:stillness", "stream": true } ]
+    "sounds": [
+      {
+        "name": "thewake:stillness",
+        "stream": true
+      }
+    ]
   },
   "creature.step": {
-    "sounds": [ "thewake:creature/step1", "thewake:creature/step2", "thewake:creature/step3" ],
+    "sounds": [
+      "thewake:creature/step1",
+      "thewake:creature/step2",
+      "thewake:creature/step3"
+    ],
     "subtitle": "subtitles.thewake.creature.step"
   },
   "creature.crack": {
-    "sounds": [ "thewake:creature/crack1", "thewake:creature/crack2", "thewake:creature/crack3" ],
+    "sounds": [
+      "thewake:creature/crack1",
+      "thewake:creature/crack2",
+      "thewake:creature/crack3",
+      {
+        "name": "thewake:lib/bones1"
+      },
+      {
+        "name": "thewake:lib/bones3"
+      }
+    ],
     "subtitle": "subtitles.thewake.creature.crack"
   },
   "creature.breath": {
-    "sounds": [ "thewake:creature/breath1", "thewake:creature/breath2" ],
+    "sounds": [
+      "thewake:creature/breath1",
+      "thewake:creature/breath2"
+    ],
     "subtitle": "subtitles.thewake.creature.breath"
   },
   "creature.scream": {
-    "sounds": [ { "name": "thewake:creature/scream" } ],
+    "sounds": [
+      {
+        "name": "thewake:creature/scream"
+      }
+    ],
     "subtitle": "subtitles.thewake.creature.scream"
   },
   "tape.warble": {
-    "sounds": [ { "name": "thewake:tape/warble" } ],
+    "sounds": [
+      {
+        "name": "thewake:tape/warble"
+      }
+    ],
     "subtitle": "subtitles.thewake.tape.warble"
   },
   "tape.static": {
-    "sounds": [ { "name": "thewake:tape/static" } ],
+    "sounds": [
+      {
+        "name": "thewake:tape/static"
+      },
+      {
+        "name": "thewake:lib/tape3"
+      }
+    ],
     "subtitle": "subtitles.thewake.tape.static"
   },
   "tape.click": {
-    "sounds": [ { "name": "thewake:tape/click" } ],
+    "sounds": [
+      {
+        "name": "thewake:tape/click"
+      }
+    ],
     "subtitle": "subtitles.thewake.tape.click"
+  },
+  "chase.scream": {
+    "sounds": [
+      {
+        "name": "thewake:lib/chase_scream1"
+      },
+      {
+        "name": "thewake:lib/chase_scream2"
+      },
+      {
+        "name": "thewake:lib/chase_scream3"
+      }
+    ],
+    "subtitle": "subtitles.thewake.chase.scream"
+  },
+  "chase.distant_scream": {
+    "sounds": [
+      {
+        "name": "thewake:lib/distant_scream1"
+      },
+      {
+        "name": "thewake:lib/distant_scream2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.chase.distant_scream"
+  },
+  "chase.drone": {
+    "sounds": [
+      {
+        "name": "thewake:lib/drone_chase1",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.thewake.chase.drone"
+  },
+  "chase.heartbeat": {
+    "sounds": [
+      {
+        "name": "thewake:lib/heartbeat1"
+      }
+    ],
+    "subtitle": "subtitles.thewake.chase.heartbeat"
+  },
+  "creature.run": {
+    "sounds": [
+      {
+        "name": "thewake:lib/run1"
+      },
+      {
+        "name": "thewake:lib/run2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.run"
+  },
+  "creature.climb": {
+    "sounds": [
+      {
+        "name": "thewake:lib/climb1"
+      },
+      {
+        "name": "thewake:lib/climb2"
+      },
+      {
+        "name": "thewake:lib/scrape_claw1"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.climb"
+  },
+  "creature.metal_rip": {
+    "sounds": [
+      {
+        "name": "thewake:lib/metal_rip1"
+      },
+      {
+        "name": "thewake:lib/metal_rip2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.metal_rip"
+  },
+  "creature.metal_impact": {
+    "sounds": [
+      {
+        "name": "thewake:lib/metal_impact1"
+      },
+      {
+        "name": "thewake:lib/metal_impact2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.metal_impact"
+  },
+  "creature.break": {
+    "sounds": [
+      {
+        "name": "thewake:lib/break1"
+      },
+      {
+        "name": "thewake:lib/break2"
+      },
+      {
+        "name": "thewake:lib/break3"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.break"
+  },
+  "creature.splash": {
+    "sounds": [
+      {
+        "name": "thewake:lib/splash_dive1"
+      },
+      {
+        "name": "thewake:lib/splash_dive2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.splash"
+  },
+  "creature.underwater": {
+    "sounds": [
+      {
+        "name": "thewake:lib/underwater_roar1"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.underwater"
+  },
+  "creature.grab": {
+    "sounds": [
+      {
+        "name": "thewake:lib/grab1"
+      },
+      {
+        "name": "thewake:lib/grab2"
+      },
+      {
+        "name": "thewake:lib/bones2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.creature.grab"
+  },
+  "event.breath_wall": {
+    "sounds": [
+      {
+        "name": "thewake:lib/breath_wall1"
+      },
+      {
+        "name": "thewake:lib/breath_wall2"
+      },
+      {
+        "name": "thewake:lib/breath_wall3"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.breath_wall"
+  },
+  "event.breath_close": {
+    "sounds": [
+      {
+        "name": "thewake:lib/breath_close1"
+      },
+      {
+        "name": "thewake:lib/breath_close2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.breath_close"
+  },
+  "event.knock": {
+    "sounds": [
+      {
+        "name": "thewake:lib/knock1"
+      },
+      {
+        "name": "thewake:lib/knock2"
+      },
+      {
+        "name": "thewake:lib/knock3"
+      },
+      {
+        "name": "thewake:lib/knock4"
+      },
+      {
+        "name": "thewake:lib/knock5"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.knock"
+  },
+  "event.scrape": {
+    "sounds": [
+      {
+        "name": "thewake:lib/scrape1"
+      },
+      {
+        "name": "thewake:lib/scrape2"
+      },
+      {
+        "name": "thewake:lib/scrape3"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.scrape"
+  },
+  "event.door_creak": {
+    "sounds": [
+      {
+        "name": "thewake:lib/door_creak1"
+      },
+      {
+        "name": "thewake:lib/door_creak2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.door_creak"
+  },
+  "event.roof_thud": {
+    "sounds": [
+      {
+        "name": "thewake:lib/roof_thud1"
+      },
+      {
+        "name": "thewake:lib/roof_thud2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.roof_thud"
+  },
+  "event.whisper": {
+    "sounds": [
+      {
+        "name": "thewake:lib/whisper1"
+      },
+      {
+        "name": "thewake:lib/whisper2"
+      },
+      {
+        "name": "thewake:lib/whisper3"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.whisper"
+  },
+  "event.steps": {
+    "sounds": [
+      {
+        "name": "thewake:lib/step1"
+      },
+      {
+        "name": "thewake:lib/step2"
+      },
+      {
+        "name": "thewake:lib/step3"
+      },
+      {
+        "name": "thewake:lib/step4"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.steps"
+  },
+  "event.music_box": {
+    "sounds": [
+      {
+        "name": "thewake:lib/music_box1",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.music_box"
+  },
+  "event.crying": {
+    "sounds": [
+      {
+        "name": "thewake:lib/crying1"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.crying"
+  },
+  "event.chains": {
+    "sounds": [
+      {
+        "name": "thewake:lib/chains1"
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.chains"
+  },
+  "event.radio": {
+    "sounds": [
+      {
+        "name": "thewake:lib/radio_static1",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.thewake.event.radio"
+  },
+  "item.camera_flash": {
+    "sounds": [
+      {
+        "name": "thewake:lib/camera_flash1"
+      }
+    ],
+    "subtitle": "subtitles.thewake.item.camera_flash"
+  },
+  "tape.rewind": {
+    "sounds": [
+      {
+        "name": "thewake:lib/tape1"
+      }
+    ],
+    "subtitle": "subtitles.thewake.tape.rewind"
+  },
+  "tape.stop": {
+    "sounds": [
+      {
+        "name": "thewake:lib/tape2"
+      }
+    ],
+    "subtitle": "subtitles.thewake.tape.stop"
+  },
+  "tape.eject": {
+    "sounds": [
+      {
+        "name": "thewake:lib/tape4"
+      }
+    ],
+    "subtitle": "subtitles.thewake.tape.eject"
+  },
+  "ambient.liminal": {
+    "sounds": [
+      {
+        "name": "thewake:lib/drone_liminal1",
+        "stream": true
+      },
+      {
+        "name": "thewake:lib/drone_liminal2",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.thewake.ambient.liminal"
   }
 }

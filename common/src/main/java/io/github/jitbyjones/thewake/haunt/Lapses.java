@@ -50,6 +50,8 @@ public final class Lapses {
                     continue;
                 }
                 NightShift.process(player, state, level, dayTimeBefore);
+                // It had the night. For now, that is enough.
+                Temper.provoke(player, state, Temper.Provocation.SLEPT);
             } catch (RuntimeException e) {
                 TheWake.LOG.error("Night shift failed for {}", player.getGameProfile().getName(), e);
             }
@@ -67,6 +69,7 @@ public final class Lapses {
         }
         if (level.getDayTime() - startDayTime >= 3000L && !Haunt.isNight(level)) {
             NightShift.process(player, state, level, startDayTime);
+            Temper.provoke(player, state, Temper.Provocation.SLEPT);
         }
     }
 
@@ -140,6 +143,14 @@ public final class Lapses {
             return;
         }
         long last = state.lastLogoutMillis();
+        if (last > 0L) {
+            long away = (System.currentTimeMillis() - last) / 1000L;
+            Director.schedule(50, () -> {
+                if (!player.hasDisconnected()) {
+                    Torment.lostTime(player, state, (int) Math.min(Integer.MAX_VALUE, away));
+                }
+            });
+        }
         if (last <= 0L || System.currentTimeMillis() - last < 30 * 60_000L) {
             return;
         }
@@ -189,6 +200,9 @@ public final class Lapses {
             state.advanceFilm(Spots.bedHead(player.serverLevel(), state.bed()), -1);
         }
         Advancements.award(player, "night_owl");
+        // You kept the night from it. It minds.
+        Temper.provoke(player, state, Temper.Provocation.KEPT_NIGHT);
+        Temper.learn(player, state, Reputation.Tactic.SLEEPLESS);
     }
 
     // ---- walking into it ------------------------------------------------------------------

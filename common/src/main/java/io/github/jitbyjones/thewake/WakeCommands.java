@@ -52,7 +52,40 @@ public final class WakeCommands {
                                                 StringArgumentType.getString(ctx, "beat"))))))
                 .then(Commands.literal("reset")
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> reset(ctx, EntityArgument.getPlayer(ctx, "player"))))));
+                                .executes(ctx -> reset(ctx, EntityArgument.getPlayer(ctx, "player")))))
+                .then(Commands.literal("anger")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("value", FloatArgumentType.floatArg(0.0F, 1.0F))
+                                        .executes(ctx -> Expansion.anger(ctx, EntityArgument.getPlayer(ctx, "player"),
+                                                FloatArgumentType.getFloat(ctx, "value"))))))
+                .then(Commands.literal("tension")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("value", FloatArgumentType.floatArg(0.0F, 1.0F))
+                                        .executes(ctx -> Expansion.tension(ctx, EntityArgument.getPlayer(ctx, "player"),
+                                                FloatArgumentType.getFloat(ctx, "value"))))))
+                .then(Commands.literal("body")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("purpose", StringArgumentType.word())
+                                        .suggests((ctx, b) -> SharedSuggestionProvider.suggest(Expansion.PURPOSES, b))
+                                        .executes(ctx -> Expansion.body(ctx, EntityArgument.getPlayer(ctx, "player"),
+                                                StringArgumentType.getString(ctx, "purpose"))))))
+                .then(Commands.literal("go")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("place", StringArgumentType.word())
+                                        .suggests((ctx, b) -> SharedSuggestionProvider.suggest(new String[] {"archive", "set", "home"}, b))
+                                        .executes(ctx -> Expansion.go(ctx, EntityArgument.getPlayer(ctx, "player"),
+                                                StringArgumentType.getString(ctx, "place"))))))
+                .then(Commands.literal("pins")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("count", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0, 4))
+                                        .executes(ctx -> Expansion.pins(ctx, EntityArgument.getPlayer(ctx, "player"),
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "count"))))))
+                .then(Commands.literal("kit")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(ctx -> Expansion.kit(ctx, EntityArgument.getPlayer(ctx, "player")))))
+                .then(Commands.literal("possess")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(ctx -> Expansion.possess(ctx, EntityArgument.getPlayer(ctx, "player"))))));
     }
 
     private static int status(CommandContext<CommandSourceStack> ctx, ServerPlayer player) {
@@ -62,6 +95,7 @@ public final class WakeCommands {
                 player.getGameProfile().getName(), s.clarity(), s.stage(), s.peakStage(), s.nightsSkipped(), s.nightsKept(), s.debt(),
                 s.ledgerCount(), s.caughtCount(), s.ended(), s.endingKept() ? " (kept)" : "");
         ctx.getSource().sendSuccess(() -> Component.literal(text), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(Expansion.describe(player, s)), false);
         return 1;
     }
 

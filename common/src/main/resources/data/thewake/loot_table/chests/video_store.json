@@ -1,0 +1,103 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "thewake:flash_bulb",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:written_book",
+          "functions": [
+            {
+              "function": "minecraft:set_book_cover",
+              "title": "returns",
+              "author": "",
+              "generation": 3
+            },
+            {
+              "function": "minecraft:set_written_book_pages",
+              "pages": [
+                "PLEASE RETURN ALL TAPES.\nLate fees apply.\n\nWe are holding one in your name.",
+                "Ours go back further than the building does. Through the door at the end of the hall. The one with nothing written on it.",
+                "Every one of them is a night. Somebody slept through it, and somebody else stayed up and watched.",
+                "Take yours from the returns slot. Play it at home, at night, when you're ready to see all of them at once."
+              ],
+              "mode": "replace_all"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 1,
+        "max": 2
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:paper",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 6
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:redstone",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 4
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_nugget",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 6
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "thewake:chests/video_store"
+}

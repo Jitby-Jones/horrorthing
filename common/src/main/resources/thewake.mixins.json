@@ -7,7 +7,8 @@
   "mixins": [
     "ServerLevelMixin",
     "TargetingConditionsMixin",
-    "TickRateManagerMixin"
+    "TickRateManagerMixin",
+    "WorldDimensionsMixin"
   ],
   "client": [
     "client.ClientPacketListenerMixin",

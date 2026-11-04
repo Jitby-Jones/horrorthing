@@ -44,12 +44,20 @@ public final class WakeClient {
                 ClientState.hunting = s.hunting();
                 ClientState.ended = s.ended();
                 ClientState.lastLayDown = s.lastLayDown();
+                ClientState.form = s.form();
+                ClientState.tension = s.tension();
+                ClientState.chasing = s.chasing();
+                ClientState.pins = s.pins();
             } else if (payload instanceof FxPayload fx) {
                 Overlays.handle(fx);
             } else if (payload instanceof StoppedPayload stopped) {
                 StoppedClient.handle(stopped);
             } else if (payload instanceof AttackPayload attack) {
                 AttackClient.begin(attack);
+            } else if (payload instanceof io.github.jitbyjones.thewake.net.WakeFxPayload fx) {
+                io.github.jitbyjones.thewake.client.fx.WakeFxClient.handle(fx);
+            } else if (payload instanceof io.github.jitbyjones.thewake.net.PossessPayload possess) {
+                io.github.jitbyjones.thewake.client.fx.PossessionClient.begin(possess);
             }
         });
     }
@@ -61,10 +69,13 @@ public final class WakeClient {
         StoppedClient.tick();
         PauseTape.tick();
         AttackClient.tick();
+        io.github.jitbyjones.thewake.client.fx.WakeFxClient.tick();
+        io.github.jitbyjones.thewake.client.fx.PossessionClient.tick();
         TapeEffect.tick();
         TapeMotor.tick();
         RoomTone.tick();
         DemoClient.tick();
+        DemoExpansionClient.tick();
     }
 
     /**
@@ -87,7 +98,8 @@ public final class WakeClient {
         int kind = screen == null || notYours ? Hunter.SCREEN_NONE : screen instanceof PauseScreen ? Hunter.SCREEN_PAUSE
                 : screen instanceof ChatScreen ? Hunter.SCREEN_CHAT : Hunter.SCREEN_MENU;
         // (The scripted demo runs on a virtual display where the window never has focus.)
-        boolean focused = mc.isWindowActive() || io.github.jitbyjones.thewake.haunt.DemoScript.ENABLED;
+        boolean focused = mc.isWindowActive() || io.github.jitbyjones.thewake.haunt.DemoScript.ENABLED
+                || io.github.jitbyjones.thewake.haunt.DemoExpansion.ENABLED;
         if (reportCooldown > 0) {
             reportCooldown--;
         }
@@ -106,6 +118,7 @@ public final class WakeClient {
     /** Every frame, before the level renders. */
     public static void beforeLevel(float partial) {
         AttackClient.frame(partial);
+        io.github.jitbyjones.thewake.client.fx.WakeFxClient.frame(partial);
     }
 
     public static void renderLevel(Camera camera, float partial) {
@@ -115,6 +128,7 @@ public final class WakeClient {
     public static void renderHud(GuiGraphics graphics, float partial) {
         Hitches.frame();
         Overlays.render(graphics, partial);
+        io.github.jitbyjones.thewake.client.fx.WakeFxClient.render(graphics, partial);
         PauseTape.renderHud(graphics);
     }
 
@@ -124,6 +138,9 @@ public final class WakeClient {
         StoppedClient.reset();
         PauseTape.reset();
         AttackClient.reset();
+        io.github.jitbyjones.thewake.client.fx.WakeFxClient.reset();
+        io.github.jitbyjones.thewake.client.fx.PossessionClient.reset();
+        io.github.jitbyjones.thewake.client.render.WorldRender.forgetBodies();
         Overlays.reset();
         TapeEffect.close();
         TapeEffect.reset();

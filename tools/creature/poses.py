@@ -424,8 +424,157 @@ def rise_clip():
     return keyed([(0, lie), (4, sit), (8, turn), (11, stand)], 12)
 
 
+# --------------------------------------------------------------------------------------------
+# Its body, out after you: the chase clips
+# --------------------------------------------------------------------------------------------
+
+def run_key(lead, phase):
+    """One key of the run. Pitched forward from the hips like something falling and catching
+    itself, the knees coming up far too high, the arms trailing behind it with the fingers loose,
+    and the face held level and on you whatever the body is doing."""
+    back = "R" if lead == "L" else "L"
+    s = 1.0 if lead == "L" else -1.0
+    if phase == "contact":
+        legs = {f"hip_{lead}": (-62, 0, 0), f"knee_{lead}": (24, 0, 0), f"ankle_{lead}": (14, 0, 0),
+                f"hip_{back}": (34, 0, 0), f"knee_{back}": (46, 0, 0), f"ankle_{back}": (-34, 0, 0)}
+        shift = (0.0, 0.0, -0.20)
+    else:
+        legs = {f"hip_{back}": (-96, 0, 0), f"knee_{back}": (128, 0, 0), f"ankle_{back}": (-44, 0, 0),
+                f"hip_{lead}": (6, 0, 0), f"knee_{lead}": (14, 0, 0), f"ankle_{lead}": (-6, 0, 0)}
+        shift = (0.0, 0.0, -0.04)
+    arms = {f"shoulder_{lead}": (30, 8 * s, 0), f"shoulder_{back}": (12, -8 * s, 0), f"elbow_{lead}": (-18, 0, 0),
+            f"elbow_{back}": (-30, 0, 0), "wrist_L": (14, 0, 0), "wrist_R": (14, 0, 0)}
+    return merge(finger_curl(-4, "L", 10), finger_curl(-4, "R", 10),
+                 {"spine1": (16, 0, 0), "spine2": (16, 0, 0), "chest": (14, 0, 0), "upchest": (10, -5 * s, 6 * s),
+                  "neck0": (6, 0, 0), "neck1": (-8, 0, 0), "neck2": (-62, 0, 0), "root_shift": shift, "jaw": 18},
+                 legs, arms)
+
+
+def climb_key(i):
+    """Up a wall, flat against it: the knees out to the sides like a spider's, one long arm up over
+    its head and the other pulling down, hand over hand. The wall is in front of it (-Y)."""
+    up = "L" if i in (0, 1) else "R"
+    down = "R" if up == "L" else "L"
+    reach = i in (0, 2)
+    out = merge(finger_curl(40, up), finger_curl(55, down),
+                {"root": (10, 0, 0), "root_pivot": (0.0, 0.0, 1.56), "root_shift": (0.0, -0.12, 0.0),
+                 "spine2": (-4, 0, 0), "chest": (-6, 0, 0), "neck0": (-10, 0, 0), "neck1": (-6, 0, 0), "neck2": (-30, 0, 0)})
+    su = 1.0 if up == "L" else -1.0
+    out[f"shoulder_{up}"] = (-172 if reach else -150, -12 * su, 0)
+    out[f"elbow_{up}"] = (-8 if reach else -36, 0, 0)
+    out[f"shoulder_{down}"] = (-118 if reach else -138, 10 * su, 0)
+    out[f"elbow_{down}"] = (-62 if reach else -28, 0, 0)
+    for side in ("L", "R"):
+        sd = 1.0 if side == "L" else -1.0
+        high = (side == down) == reach
+        out[f"hip_{side}"] = (-96 if high else -52, 44 * sd, 0)
+        out[f"knee_{side}"] = (118 if high else 64, 0, 0)
+        out[f"ankle_{side}"] = (-36, 0, 0)
+    return out
+
+
+def leap_clip():
+    """Six frames off the ground: down into a crouch, launched, and then long and flat through the
+    air at you, every limb reaching."""
+    crouch = merge(finger_curl(20, "L"), finger_curl(20, "R"),
+                   {"hip_L": (-96, -10, 0), "hip_R": (-96, 10, 0), "knee_L": (128, 0, 0), "knee_R": (128, 0, 0),
+                    "ankle_L": (-30, 0, 0), "ankle_R": (-30, 0, 0), "spine1": (28, 0, 0), "spine2": (20, 0, 0), "chest": (10, 0, 0),
+                    "neck2": (-80, 0, 0), "shoulder_L": (40, 0, 0), "shoulder_R": (40, 0, 0), "root_shift": (0.0, 0.1, -0.7), "jaw": 10})
+    launch = merge(finger_curl(-10, "L", 10), finger_curl(-10, "R", 10),
+                   {"root": (40, 0, 0), "root_pivot": (0.0, 0.0, 1.56), "hip_L": (20, 0, 0), "hip_R": (30, 0, 0),
+                    "knee_L": (20, 0, 0), "knee_R": (30, 0, 0), "ankle_L": (40, 0, 0), "ankle_R": (40, 0, 0),
+                    "neck2": (-90, 0, 0), "shoulder_L": (-120, -20, 0), "shoulder_R": (-120, 20, 0), "jaw": 40})
+    fly = merge(finger_curl(-20, "L", 16), finger_curl(-20, "R", 16),
+                {"root": (72, 0, 0), "root_pivot": (0.0, 0.0, 1.56), "hip_L": (24, 6, 0), "hip_R": (34, -6, 0),
+                 "knee_L": (50, 0, 0), "knee_R": (30, 0, 0), "ankle_L": (40, 0, 0), "ankle_R": (40, 0, 0),
+                 "spine2": (-6, 0, 0), "neck0": (-20, 0, 0), "neck2": (-96, 0, 0),
+                 "shoulder_L": (-160, -26, 0), "shoulder_R": (-160, 26, 0), "elbow_L": (-6, 0, 0), "elbow_R": (-6, 0, 0),
+                 "jaw": 70, "jaw_drop": 0.04})
+    return keyed([(0, crouch), (2, launch), (4, fly), (5, fly)], 6)
+
+
+HOLD = merge(finger_curl(70, "L"), finger_curl(70, "R"),
+             {"spine1": (6, 0, 0), "spine2": (8, 0, 0), "chest": (6, 0, 0), "neck0": (20, 0, 0), "neck1": (6, 0, 0), "neck2": (-44, 0, 0),
+              "shoulder_L": (-74, -14, 0), "shoulder_R": (-74, 14, 0), "elbow_L": (-48, 0, 0), "elbow_R": (-48, 0, 0),
+              "wrist_L": (-10, 0, 0), "wrist_R": (-10, 0, 0),
+              "hip_L": (-10, 0, 0), "hip_R": (-4, 0, 0), "knee_L": (18, 0, 0), "knee_R": (10, 0, 0), "jaw": 24})
+
+
+def throw_clip():
+    """Six frames: a door, or you, thrown aside. Wound back, round, and through."""
+    wind = merge(finger_curl(64, "R"), finger_curl(30, "L"),
+                 {"upchest": (6, 0, 30), "chest": (6, 0, 14), "neck2": (-60, 0, -30),
+                  "shoulder_R": (36, -60, 0), "elbow_R": (-30, 0, 0), "shoulder_L": (-30, 10, 0),
+                  "hip_L": (-20, 0, 0), "knee_L": (20, 0, 0), "hip_R": (10, 0, 0), "knee_R": (14, 0, 0)})
+    swing = merge(finger_curl(20, "R"), finger_curl(30, "L"),
+                  {"upchest": (14, 0, -24), "chest": (10, 0, -10), "neck2": (-58, 0, 16),
+                   "shoulder_R": (-104, 30, 0), "elbow_R": (-10, 0, 0), "shoulder_L": (20, -10, 0),
+                   "hip_L": (-30, 0, 0), "knee_L": (30, 0, 0), "hip_R": (16, 0, 0), "knee_R": (20, 0, 0), "jaw": 30})
+    through = merge(finger_curl(-10, "R", 10), finger_curl(30, "L"),
+                    {"upchest": (18, 0, -40), "chest": (12, 0, -16), "neck2": (-54, 0, 26),
+                     "shoulder_R": (-60, 70, 0), "elbow_R": (-6, 0, 0), "shoulder_L": (30, -10, 0),
+                     "hip_L": (-34, 0, 0), "knee_L": (34, 0, 0), "hip_R": (20, 0, 0), "knee_R": (24, 0, 0), "jaw": 20})
+    return keyed([(0, wind), (2, swing), (4, through), (5, through)], 6)
+
+
+def scream_clip():
+    """Six frames: the head goes back, further than a neck goes, the chin piece drops all the way,
+    the arms open wide and back, the fingers spread."""
+    start = merge(POSES["stand"], {"jaw": 6})
+    top = merge(finger_curl(-24, "L", 18), finger_curl(-24, "R", 18),
+                {"spine2": (-4, 0, 0), "chest": (-8, 0, 0), "upchest": (-10, 0, 0),
+                 "neck0": (-14, 0, 0), "neck1": (-24, 0, 0), "neck2": (-118, 0, 0),
+                 "shoulder_L": (24, -70, 0), "shoulder_R": (24, 70, 0), "elbow_L": (-14, 0, 0), "elbow_R": (-14, 0, 0),
+                 "hip_L": (-6, 0, 0), "hip_R": (-6, 0, 0), "knee_L": (10, 0, 0), "knee_R": (10, 0, 0),
+                 "jaw": 110, "jaw_drop": 0.06})
+    return keyed([(0, start), (3, top), (5, top)], 6)
+
+
+def stunned_clip():
+    """Six frames, blinded: it reels back, the hands come up over the card, the head turns away
+    and down, the knees give."""
+    start = merge(POSES["stand"], {})
+    covered = merge(finger_curl(30, "L", 6), finger_curl(30, "R", 6),
+                    {"spine1": (-8, 0, 0), "spine2": (-6, 0, 0), "chest": (10, 0, 12), "upchest": (10, 0, 8),
+                     "neck0": (30, 0, 0), "neck1": (20, 0, 0), "neck2": (-30, 18, 40),
+                     "shoulder_L": (-136, -30, 0), "shoulder_R": (-128, 34, 0), "elbow_L": (-112, 0, 0), "elbow_R": (-120, 0, 0),
+                     "hip_L": (-40, 0, 0), "hip_R": (-30, 0, 0), "knee_L": (60, 0, 0), "knee_R": (48, 0, 0),
+                     "ankle_L": (-20, 0, 0), "ankle_R": (-18, 0, 0), "root_shift": (0.0, 0.18, -0.25), "jaw": 30})
+    return keyed([(0, start), (3, covered), (5, covered)], 6)
+
+
+# Hanging off a ledge by its fingers, its face just over the edge. The entity stands at the level
+# of the ledge: everything hangs down from there.
+LEDGE = merge(finger_curl(84, "L"), finger_curl(84, "R"),
+              {"root_shift": (0.0, -0.3, -2.86), "neck0": (0, 0, 0), "neck1": (0, 0, 0), "neck2": (-60, 0, 0),
+               "shoulder_L": (-85, -8, 0), "shoulder_R": (-85, 8, 0), "elbow_L": (-130, 0, 0), "elbow_R": (-130, 0, 0),
+               "wrist_L": (40, 0, 0), "wrist_R": (40, 0, 0),
+               "hip_L": (-14, 6, 0), "hip_R": (-4, -6, 0), "knee_L": (20, 0, 0), "knee_R": (12, 0, 0)})
+
+
+def swim_key(i):
+    """Under the water, long and flat, pulling itself at you with its arms, the legs trailing."""
+    lead = "L" if i < 2 else "R"
+    other = "R" if lead == "L" else "L"
+    reach = i % 2 == 0
+    out = merge(finger_curl(-10, "L", 12), finger_curl(-10, "R", 12),
+                {"root": (88, 0, 0), "root_pivot": (0.0, 0.0, 1.56), "root_shift": (0.0, 0.5, -1.2),
+                 "neck0": (-30, 0, 0), "neck1": (-30, 0, 0), "neck2": (-40, 0, 0), "jaw": 30})
+    out[f"shoulder_{lead}"] = (-176 if reach else -120, 0, 0)
+    out[f"shoulder_{other}"] = (-40 if reach else -100, 0, 0)
+    out[f"elbow_{lead}"] = (-6 if reach else -40, 0, 0)
+    out[f"elbow_{other}"] = (-20, 0, 0)
+    out["hip_L"] = (14 if i % 2 else -14, 6, 0)
+    out["hip_R"] = (-14 if i % 2 else 14, -6, 0)
+    out["knee_L"] = (20, 0, 0)
+    out["knee_R"] = (20, 0, 0)
+    out["ankle_L"] = (40, 0, 0)
+    out["ankle_R"] = (40, 0, 0)
+    return out
+
+
 GROUNDED = ("stand", "stoop", "crouch", "peek_right", "peek_left", "reach", "bedside", "walk", "stoop_walk", "crawl",
-            "lunge", "lean_right", "lean_left")
+            "lunge", "lean_right", "lean_left", "run", "hold", "throw", "scream", "stunned")
 CONTACT = ("toe_", "heel_", "foot_", "ankle_")
 CONTACT_HANDS = ("f0k4_", "f1k4_", "f2k4_", "f3k4_", "palm_")
 
@@ -468,4 +617,15 @@ def _clips():
     out["rise"] = (8.0, False, rise_clip())
     out["lean_right"] = (6.0, False, lean_clip("R"))
     out["lean_left"] = (6.0, False, lean_clip("L"))
+    # Its body, out after you. The order matches CreaturePose.
+    out["run"] = (10.0, True, keyed([(0, run_key("L", "contact")), (2, run_key("L", "passing")),
+                                     (4, run_key("R", "contact")), (6, run_key("R", "passing"))], 8, loop=True))
+    out["climb"] = (8.0, True, keyed([(0, climb_key(0)), (2, climb_key(1)), (4, climb_key(2)), (6, climb_key(3))], 8, loop=True))
+    out["leap"] = (10.0, False, leap_clip())
+    out["hold"] = (1.0, False, [HOLD])
+    out["throw"] = (12.0, False, throw_clip())
+    out["scream"] = (10.0, False, scream_clip())
+    out["stunned"] = (10.0, False, stunned_clip())
+    out["ledge"] = (1.0, False, [LEDGE])
+    out["swim"] = (8.0, True, keyed([(0, swim_key(0)), (2, swim_key(1)), (4, swim_key(2)), (6, swim_key(3))], 8, loop=True))
     return out

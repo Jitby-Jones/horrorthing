@@ -1,0 +1,22 @@
+{
+  "has_precipitation": false,
+  "temperature": 0.5,
+  "downfall": 0.0,
+  "effects": {
+    "fog_color": 4867634,
+    "sky_color": 0,
+    "water_color": 4159204,
+    "water_fog_color": 329011,
+    "ambient_sound": "thewake:ambient.liminal",
+    "mood_sound": {
+      "sound": "thewake:event.breath_wall",
+      "tick_delay": 3600,
+      "block_search_extent": 8,
+      "offset": 2.0
+    }
+  },
+  "spawners": {},
+  "spawn_costs": {},
+  "carvers": {},
+  "features": []
+}

@@ -91,6 +91,60 @@
    "fps": 6.0,
    "loop": false,
    "height": 3.043
+  },
+  "run": {
+   "frames": 8,
+   "fps": 10.0,
+   "loop": true,
+   "height": 3.06
+  },
+  "climb": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 3.878
+  },
+  "leap": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 3.009
+  },
+  "hold": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 3.293
+  },
+  "throw": {
+   "frames": 6,
+   "fps": 12.0,
+   "loop": false,
+   "height": 3.338
+  },
+  "scream": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 3.285
+  },
+  "stunned": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 3.188
+  },
+  "ledge": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 0.42
+  },
+  "swim": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 1.251
   }
  }
 }

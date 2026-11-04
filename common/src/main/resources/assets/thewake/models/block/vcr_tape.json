@@ -1,0 +1,80 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "thewake:block/vcr_side",
+    "front": "thewake:block/vcr_front_tape",
+    "side": "thewake:block/vcr_side",
+    "top": "thewake:block/vcr_top"
+  },
+  "elements": [
+    {
+      "from": [
+        1,
+        0,
+        2
+      ],
+      "to": [
+        15,
+        5,
+        14
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            11,
+            15,
+            16
+          ],
+          "texture": "#front"
+        },
+        "south": {
+          "uv": [
+            1,
+            11,
+            15,
+            16
+          ],
+          "texture": "#side"
+        },
+        "east": {
+          "uv": [
+            2,
+            11,
+            14,
+            16
+          ],
+          "texture": "#side"
+        },
+        "west": {
+          "uv": [
+            2,
+            11,
+            14,
+            16
+          ],
+          "texture": "#side"
+        },
+        "up": {
+          "uv": [
+            1,
+            2,
+            15,
+            14
+          ],
+          "texture": "#top"
+        },
+        "down": {
+          "uv": [
+            1,
+            2,
+            15,
+            14
+          ],
+          "texture": "#side",
+          "cullface": "down"
+        }
+      }
+    }
+  ]
+}

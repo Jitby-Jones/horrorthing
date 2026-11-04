@@ -213,3 +213,97 @@ def back(W, H, card, seed=5):
             if 0 <= yi < H:
                 img[yi, xi] *= 0.6
     return img
+
+
+def dress(L, form, seed=11):
+    """The card as its temper changes it (see Reputation.Form in the mod): 1 creased, with a smile
+    somebody drew on it in red crayon, too wide; 2 stained, bleeding from the eyes, the smile
+    scribbled out; 3 torn at the eyes, another card stapled over a corner of it, its number crossed
+    out and the next one written in."""
+    W, H, S = L["W"], L["H"], L["S"]
+    u, v, card, holes = L["u"], L["v"], L["card"], L["holes"]
+    wear = (0.0, 0.7, 1.2, 1.6)[form]
+    blood = (0.0, 0.0, 1.0, 2.0)[form]
+    img = L["paint"](wear=wear, blood=blood)
+    if form <= 0:
+        return img
+    rng = np.random.default_rng(seed + form)
+
+    def dot(x, y, r, color, alpha=1.0):
+        x0, x1 = int(max(0, x - r)), int(min(W, x + r + 1))
+        y0, y1 = int(max(0, y - r)), int(min(H, y + r + 1))
+        if x0 >= x1 or y0 >= y1:
+            return
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        m = ((xx - x) ** 2 + (yy - y) ** 2 <= r * r) & card[y0:y1, x0:x1] & ~holes[y0:y1, x0:x1]
+        img[y0:y1, x0:x1][m] = img[y0:y1, x0:x1][m] * (1 - alpha) + np.array(color, dtype=float) * alpha
+
+    def stroke(points, r, color, alpha=1.0, broken=0.0):
+        for (xa, ya), (xb, yb) in zip(points[:-1], points[1:]):
+            n = int(max(abs(xb - xa), abs(yb - ya)) / max(0.5, r * 0.5)) + 1
+            for t in np.linspace(0, 1, n):
+                if broken and rng.random() < broken:
+                    continue
+                dot(xa + (xb - xa) * t + rng.normal(0, 0.15 * r), ya + (yb - ya) * t + rng.normal(0, 0.15 * r), r, color, alpha)
+
+    # A crease, folded once and flattened again.
+    a = np.array([0.05 * W, 0.18 * H])
+    b = np.array([0.95 * W, 0.62 * H])
+    pts = [a + (b - a) * t + np.array([0, rng.normal(0, 0.6 * S)]) for t in np.linspace(0, 1, 40)]
+    stroke(pts, 0.8 * S, (120, 108, 86), 0.7)
+    stroke([(x + 1.5 * S, y + 1.0 * S) for x, y in pts], 0.6 * S, (236, 228, 206), 0.5)
+    # The smile, in red crayon, far wider than its mouth.
+    crayon = (178, 36, 26)
+    smile = []
+    for t in np.linspace(-1, 1, 36):
+        x = (0.5 + t * 0.36) * W
+        y = (MOUTH_V + 0.012 - 0.07 * (1 - t * t) * -1 - 0.075 * t * t) * H
+        smile.append((x, y))
+    if form == 1:
+        stroke(smile, 2.2 * S, crayon, 0.85, broken=0.25)
+    if form >= 2:
+        stroke(smile, 2.2 * S, crayon, 0.6, broken=0.35)
+        # Scribbled over, hard, in black.
+        x = 0.12 * W
+        zig = []
+        up = True
+        while x < 0.88 * W:
+            zig.append((x, (MOUTH_V + (-0.03 if up else 0.05)) * H + rng.normal(0, 2 * S)))
+            x += rng.uniform(3, 7) * S
+            up = not up
+        stroke(zig, 1.3 * S, (30, 24, 22), 0.85)
+    if form >= 3:
+        # Torn out from the eyes: splits in the paper, a dark edge and a pale fibre beside it.
+        for (eu, ev) in (EYE_L, EYE_R):
+            for k in range(3):
+                ang = -np.pi / 2 + (k - 1) * 1.1 + rng.normal(0, 0.25) + (np.pi if k == 1 and ev > 0.38 else 0.0)
+                x, y = eu * W, ev * H
+                path = [(x, y)]
+                for _ in range(int(rng.integers(6, 10))):
+                    ang += rng.normal(0, 0.18)
+                    x += np.cos(ang) * 3.2 * S
+                    y += np.sin(ang) * 3.2 * S
+                    path.append((x, y))
+                stroke(path, 0.55 * S, (52, 34, 26), 0.85)
+                stroke([(px + 0.9 * S, py + 0.6 * S) for px, py in path], 0.45 * S, (236, 228, 208), 0.6)
+        # Another card, stapled over the corner: somebody else's eye drawn on it in pencil.
+        x0, x1 = int(0.10 * W), int(0.46 * W)
+        y0, y1 = int(0.76 * H), int(0.93 * H)
+        patch = card[y0:y1, x0:x1]
+        tone = np.array([224.0, 214.0, 188.0])
+        sub = img[y0:y1, x0:x1]
+        sub[patch] = tone + rng.normal(0, 4, (patch.sum(), 3))
+        for ry in range(y0 + int(4 * S), y1, int(7 * S)):
+            img[ry, x0:x1][card[ry, x0:x1]] *= 0.82
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        oval = [(cx + np.cos(t) * 0.09 * W, cy + np.sin(t) * 0.035 * H) for t in np.linspace(0, 2 * np.pi, 30)]
+        stroke(oval, 0.9 * S, (52, 48, 46), 0.95)
+        dot(cx, cy, 3.0 * S, (24, 22, 20))
+        stroke([(cx - 0.1 * W, cy - 0.05 * H), (cx + 0.08 * W, cy - 0.06 * H)], 0.7 * S, (60, 56, 52), 0.8)
+        for sx in (x0 + 4 * S, x1 - 6 * S):
+            stroke([(sx, y0 + 3 * S), (sx + 5 * S, y0 + 3 * S)], 0.7 * S, (150, 150, 156), 1.0)
+        # Its number, crossed out; the next one written beside it.
+        stroke([(14 * S, 15 * S), (30 * S, 13 * S)], 0.8 * S, (30, 24, 22), 0.9)
+        stroke([(34 * S, 12 * S), (40 * S, 11 * S), (34 * S, 17 * S), (40 * S, 17 * S), (34 * S, 22 * S)], 1.0 * S, crayon, 0.85)
+        stroke([(44 * S, 12 * S), (50 * S, 12 * S), (44 * S, 22 * S), (50 * S, 22 * S)], 1.0 * S, crayon, 0.85)
+    return np.clip(img, 0, 255)

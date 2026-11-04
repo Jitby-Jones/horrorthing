@@ -41,6 +41,9 @@ public final class Director {
         serverTicks = 0;
         Phantoms.onServerStopped();
         Hunter.onServerStopped();
+        Pursuit.onServerStopped();
+        Possession.onServerStopped();
+        LastNight.onServerStopped();
     }
 
     public static void tick(MinecraftServer server) {
@@ -85,6 +88,7 @@ public final class Director {
     }
 
     private static void tickPlayer(ServerPlayer player, HauntState state, long gameTime) {
+        Possession.tick(player, state, gameTime);
         if (StoppedManager.isIn(player)) {
             return;
         }
@@ -96,6 +100,13 @@ public final class Director {
         trackSleep(player, state, level);
         trackActivity(player, state);
         Hunter.tick(player, state);
+        LastNight.tick(player, state);
+        Pursuit.tick(player, state, gameTime);
+        if (gameTime % 20L == 0L) {
+            Tension.tick(player, state, gameTime);
+            Torment.tick(player, state, gameTime);
+            syncTemper(player, state);
+        }
         if (gameTime % 10L == 0L) {
             trackSteps(player, state);
         }
@@ -169,6 +180,15 @@ public final class Director {
         }
     }
 
+    /** The form it shows changed: tell the client, which dresses its images in it. */
+    private static void syncTemper(ServerPlayer player, HauntState state) {
+        int form = Temper.form(state).ordinal();
+        if (form != state.syncedForm || player.level().getGameTime() % 100L == 0L) {
+            state.syncedForm = form;
+            state.syncDirty = true;
+        }
+    }
+
     /** A new in-game day: today's routes become yesterday's. Retracing them teaches it. */
     private static void newDay(ServerPlayer player, HauntState state, ServerLevel level) {
         long day = Haunt.day(level);
@@ -176,6 +196,10 @@ public final class Director {
             return;
         }
         boolean first = state.routeDay() < 0;
+        if (!first) {
+            Temper.newDay(player, state, level.getGameTime() - state.reputation().lastChaseTick() > 24000L
+                    && level.getGameTime() - state.reputation().lastHurtTick() > 24000L);
+        }
         float overlap = state.rollRoutes(day);
         if (!first && overlap >= 0.5F) {
             Haunt.gain(player, state, 0.008F);

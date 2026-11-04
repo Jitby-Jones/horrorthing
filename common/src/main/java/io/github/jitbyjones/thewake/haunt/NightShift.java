@@ -117,6 +117,9 @@ final class NightShift {
                 };
             }
         }
+        if (Gifts.due(state, level) && player.getRandom().nextFloat() < 0.5F) {
+            return () -> Gifts.leave(player, state, level, head);
+        }
         if (Beats.window(state, Stage.WATCHING, Stage.HUSH)) {
             return () -> {
                 Mornings.after(player, state, level, head, facing);

@@ -18,11 +18,22 @@ public final class HauntData extends SavedData {
     private static final String NAME = TheWake.MOD_ID;
 
     private final Map<UUID, HauntState> states = new HashMap<>();
+    /** The game mode this world was in the first time the Wake saw it. */
+    private int startType = -1;
 
     public static HauntData get(MinecraftServer server) {
         ServerLevel overworld = server.overworld();
-        return overworld.getDataStorage().computeIfAbsent(
+        HauntData data = overworld.getDataStorage().computeIfAbsent(
                 new SavedData.Factory<>(HauntData::new, HauntData::load, null), NAME);
+        if (data.startType < 0) {
+            data.startType = server.getWorldData().getGameType().getId();
+        }
+        return data;
+    }
+
+    /** First started in creative: somebody building. Possession leaves them alone. */
+    public boolean startedCreative() {
+        return startType == net.minecraft.world.level.GameType.CREATIVE.getId();
     }
 
     public HauntState state(UUID player) {
@@ -46,12 +57,14 @@ public final class HauntData extends SavedData {
             list.add(state.save());
         }
         tag.put("Players", list);
-        tag.putInt("Version", 1);
+        tag.putInt("Version", 2);
+        tag.putInt("StartType", startType);
         return tag;
     }
 
     private static HauntData load(CompoundTag tag, HolderLookup.Provider registries) {
         HauntData data = new HauntData();
+        data.startType = tag.contains("StartType") ? tag.getInt("StartType") : -1;
         ListTag list = tag.getList("Players", Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++) {
             try {

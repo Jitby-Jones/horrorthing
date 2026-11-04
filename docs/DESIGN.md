@@ -996,3 +996,359 @@ What changed, keeping the core rule (it moves only while you are not watching th
 - Children's drawings on framed maps.
 - The hand on the glass: that is *T.O.E.*'s move.
 - Retuning the finale's paths to the ones it walked.
+
+## Pass 12: The expansion: its temper, its body, its places
+
+Owner request, in short: fully expand the content. Forms and stages of anger; a reputation built
+from what the player does (hurting it, avoiding sleep); powers; chases that can be escaped but are
+frightening, in which it tears iron doors out and throws them rather than phasing through; it breaks
+blocks and climbs walls; running into water makes it leap and dive and grab you; pillaring up, or
+boxing the pillar in, must not work, so plan for every way a player builds to cheese it; creative
+mode and commands must not save you: it grabs you and takes your chat box to switch you back
+(unless the world started in creative). Different dimensions; creepy liminal structures that matter
+to progression; a way to fight it and remove it from the world. Most of the time it should torment
+and watch, not attack: only when the tension is high and a scare would land. It learns and stalks.
+Subvert the genre's expectations (it climbs the back of your watchtower). Real sounds from
+libraries, not synthesised ones: deafening screams in a chase, breathing behind walls. Random
+events with nothing to see: knocking, scraping in caves. And ideas of my own.
+
+### Research
+
+A research pass (Modrinth descriptions and changelogs, the Wonderland and Broken Script wikis,
+mod source where public) covered six things:
+
+1. **Wonderland** (wonderland.jar, Forge 1.20.1): anomalies stalk for 2 to 15 days, then take you to
+   one of 43 dimensions with fake exits, and escaping can make your world worse. Its hub is a
+   superflat field of identical trees, Infdev houses and lore books.
+2. **Dimensions and liminal mods**:
+   - Found Footage: one ChunkGenerator per level, with rooms on a maze of 16-block cells.
+   - The Corners: lit paintings are doors.
+   - liminalness: a bed in total darkness takes you in.
+   - Grim & Bleak: escaping Limbo leaks creatures into the Overworld.
+   - Nobody copies the player's own world. The Set does.
+3. **Progression structures**: Whispers of the Wendigo hides a stun rifle in cabins; Grim & Bleak's
+   tents point to the arena; The Broken Script gifts structures to players with good reputation.
+   Players go looking for exits, weapons, lore and keys.
+4. **Stalker AI** that worked: The Man From The Fog (eye contact decides; it digs, crawls, climbs),
+   From The Fog (slips round a corner when caught at a window), Cave Dweller (cave noise means
+   something), GoatMan (abducts rather than kills). Complaints: spawn spam, broken containers,
+   torch-breaking (cut after community feedback), aggro through walls, stuck pathing, "extremely
+   loud" jumpscares, no Quit button, bans.
+5. **Cheese and counters** seen in the wild: step height and leaping for pillars; splintering doors
+   with a warning; basalt bridges over water; mods that simply refuse to board boats; beds burnt;
+   peaceful reset to easy; commands blocked; relogging resets the stalker (a gap).
+6. **Subversions**: fake UI (error popups, window titles, "joined the game"); your own chat replayed
+   by fake players; ENGRAM's caves already mined; Twixxel's stalker moving only while unwatched.
+   Nobody else uses the Wake's stricter rule: only while you are gone from the world.
+
+Its twelve ideas for the Wake, and what became of them:
+
+| Idea | Taken? |
+|---|---|
+| Lost-time counter after every lapse | Yes: a VCR counter, `-0:01:12 ◀◀`, after menus, pauses and logins. |
+| Face cards that show its anger | Yes: four faces (below). |
+| Chatbox puppetry for creative and commands | Yes: its central counter to cheating. |
+| Tape artifacts: yesterday's footsteps, knocks, lost minutes | Yes: your own footsteps along yesterday's route. |
+| Paused frame | Already (Pass 9's pause tape). |
+| Watchtower: hands on the ledge | Yes, live (not only in lapses). |
+| Rehearsal: the next encounter starts where you escaped | Partly: it starts ahead of you if you outran it, and checks where you hid. |
+| The wake: following a boat's trail | Folded into the leap and dive. |
+| Tape sites | Yes: the video shop, the waiting room with strings over the chairs. |
+| Dropped-frame chase | Its body is drawn in stop-motion; the tape skips when it cannot reach you. |
+| The Set: your base rebuilt as a soundstage | Yes: a whole dimension. |
+| Eject: keep it in view, back toward the eject | Yes: the end of the fight. |
+
+### Two axes, still no safe default
+
+The founding rule stands: every skipped night is one it stays up through. Sleep feeds clarity
+(how well it knows you, which unlocks the acts). New: **anger**, how it feels about you. Staying
+up is a kept night, and it resents the night kept from it. So:
+
+- Sleep, and it learns you. Clarity rises; anger cools a little (-0.035).
+- Stay up, and it hates you for it. Clarity falls; anger rises (+0.07).
+
+There is still no right answer.
+
+| Provocation | Anger |
+|---|---|
+| Hit it | +0.05 |
+| Flash it | +0.04 |
+| Keep a night (stay up) | +0.07 |
+| Sleep through a night | -0.035 |
+| Light where it stood | +0.015 |
+| Escape a chase | +0.06 |
+| Make it climb, dig, swim, rip a door | +0.04 (per obstacle, less for blocks) |
+| Creative, spectator, commands, /kill | +0.15 |
+| Pull a pin | +0.2 |
+| It catches you | -0.22 |
+| A quiet day | -0.02 |
+| Trespass in its places, take your tape | +0.03 to +0.06 |
+
+All scaled by the `angerRate` option.
+
+### Its four faces
+
+Anger has four forms; the card it wears gets worse with each. They are painted from the same card
+as the model (`card.dress`), and the body and every image wear the current one.
+
+1. **Watcher** (below 0.25): the clean card. It only watches.
+2. **Uneasy**: creased, a smile drawn on in red crayon, far wider than its mouth. Knocks start.
+3. **Angry**: stained, bleeding from the eye holes, the smile scribbled out. It will chase.
+4. **Furious** (0.75 and up): torn out from the eyes, another card stapled over a corner with
+   somebody else's eye drawn on it, its number crossed out and the next one written in. It is
+   faster, blows out your lights, and goes through wooden doors instead of opening them.
+
+On the body, the forms also lean the head over (roll), let the jaw hang and twitch the head now and
+then.
+
+### The director: tension first
+
+A per-player **tension** (0 to 1) rises through the night, in the dark, underground, in its places,
+alone, hurt; it is multiplied by the form. It falls in daylight and company, and drops to almost
+nothing after a real scare, staying low for two minutes. The director spends it:
+
+- **Torment** (most of the time): noises with nothing to see, each adding a little tension.
+- **Stalking**: at 0.42 and up, its body follows you through the dark, moving only while you are not
+  looking at it. Look at it and it stops. Hold the look and it goes, or, if it is angry enough and
+  you are afraid enough, it comes.
+- **The watchtower**: if you are standing on something narrow and high, it climbs the side you are
+  not watching, and its face is over the edge behind you when you turn.
+- **A chase**: only when it is angry (or uneasy in Act IV), tension is at least 0.78, it is dark, it
+  has not chased in four to seven minutes, and there has been no scare in ninety seconds. If you are
+  shut in, a siege instead.
+
+### Its body
+
+Until now it never had one: only images, owner-only, that moved while you were not watching. Now,
+when it has had enough of watching, it has a body (`WakeEntity`):
+
+- Owner-only: only that player's client is ever told it exists.
+- Never saved: if the world closes mid-chase, the chase is remembered and resumes when you return.
+- Not killable. `/kill` makes it angrier and moves it. It is immune to falling, fire, drowning,
+  explosions and lightning, and cannot be pushed, leashed or put in a minecart.
+- Drawn by the same skeleton as the images, in stop-motion, using nine new clips: run, climb,
+  leap, hold, throw, scream, stunned, ledge, swim.
+
+**Escapable but frightening**:
+
+- **Speed.** Its speed is tuned against the player's. Mob speed is about 44 × s² m/s for a speed
+  value s, so it runs at 5.2 to 6.0 m/s by temper. Sprinting is 5.6 m/s; sprint-jumping is about
+  7. On open ground you gain on it, slowly, and anything that slows you lets it gain. Hunger
+  matters, because without food you cannot sprint.
+- **The chase runs out.** After 24 to 60 seconds (more when it is angrier) it gives up, and the
+  escape is counted.
+- **Hiding.** Out of its sight for five or six seconds, more than fourteen blocks away, and it
+  searches. It goes where it last saw you and listens. Sprinting or walking upright nearby gives
+  you away; crouching in the dark may not.
+- **The flash.** The camera blinds it for four seconds.
+- **Struggling.** If it has you, sneak over and over: nine times before the bite and it drops you.
+
+**The scares themselves**: the chase scream is the loudest sound in the mod. It has a positional
+layer that carries sixty-odd blocks and a flat layer in your ears when it is close, capped by
+`screamVolume`. Under the chase: a drone, your heartbeat, and the tape wearing worse the closer it
+is.
+
+### Every way to cheese it, and what it does
+
+| You... | It... |
+|---|---|
+| Pillar up | Climbs (walls are ladders to it). Under a lip or overhang, it breaks the block over its head and keeps coming. Once it has seen you pillar twice, the tape skips it up to you while you are not looking. |
+| Box yourself in | Laying siege: knocks on the walls (6 to 16 s depending on temper), breathes through them, then breaks one block at the height of your face and looks in at you for three seconds before making the hole bigger. |
+| Box in with unbreakable blocks (bedrock) | Waits, then the tape skips it inside if there is room; otherwise it leaves, angrier. |
+| Iron door | Rips it out of the frame and throws it. The door tumbles, lands with a crash, and lies there; then it is an iron door item in the grass. |
+| Iron trapdoor | Same. |
+| Wooden door, gate | Bangs it open; furious, breaks it (it drops). |
+| Run into the light | It learns. Next time the chase starts with Darkness on you. Furious, it blows out your lights: candles and campfires are put out, torches and lanterns drop as items. At most eight per chase, and only in chases (other mods were criticised for torch-breaking). |
+| Swim away | It leaps at you across the water and dives in. Under water it is faster than you, grabs you and holds you down. |
+| Boat | It comes down on the boat, which breaks (and drops). |
+| Portal | It does not follow. It is where you come back, and it counts it. |
+| Log out | The chase is pending, and it is right there when you log in. Counted. |
+| Creative or spectator | Possession (below). |
+| /kill, /tp | /kill does nothing but anger it and move it closer. /tp: it catches up (tape skip while unseen). |
+| Peaceful | It does not despawn. Its damage type never scales with difficulty. |
+| Fight it | You can hit it. It flinches, never falls, remembers, and comes. |
+| Fences, walls, slabs | It climbs them. |
+| Hide in one spot every time | It learns your hiding places and checks them first. |
+| Outrun it twice | It starts the next chase ahead of you. |
+| Flash it repeatedly | It learns to shut its eyes when it sees the camera raised, and runs at you by ear. |
+| Build a watchtower | It climbs the back of it (above). |
+| Stay up every night | No sleep means rising anger. |
+
+Breaking is capped per chase (`chaseBreakLimit`, 48) and can be switched off, as can ripping doors.
+Every broken block drops, so nothing is ever lost, only moved.
+
+### Its powers
+
+Every power is a moment where the rules you have learned stop holding:
+
+- **The tape skip.** It is somewhere else, all at once, in a jolt of tracking noise. It uses this to
+  get past what it cannot break, up to a pillar it has learned, or closer after /kill.
+- **Chat possession.** It types into your chat box (below).
+- **Forced looking away.** In the last night it opens your inventory, your chat, your pause menu, so
+  that it can move.
+- **Darkness.** Vanilla's warden effect, if it has learned that you run to the light.
+- **Lights out**, for a furious chase: candles and campfires snuffed, torches and lanterns dropped.
+- **The flicker.** Your screen stutters dark as the lights do.
+- **Mimicry.** Your doors, your chests, eating and burping, crafting, picking things up, played from
+  where you are not.
+- **Your own footsteps,** on the blocks you walked on yesterday, along the way you walked.
+- **The photograph.** A shutter and a flash behind you, and the edges of your view go white.
+
+### Creative and commands do not save you
+
+In a world first started in survival (the start mode is recorded the first time the mod sees the
+world), switching to creative or spectator mid-haunting makes it take your chat box:
+
+1. The chat opens by itself.
+2. It types, one key at a time and unevenly, something for you to read ("no", "you can't watch from
+   there", "come back down", "put it back"), then backspaces over it.
+3. It types `/gamemode survival` and presses enter.
+
+It is your own command, in your own chat history. Your keys do nothing and escape does not close
+it. During a chase or a grab it happens at once (holding you while it types). Otherwise it happens
+when it notices: sooner at night, sooner when it is angrier, at most once every four minutes. If the
+command is refused (no permission) or your client lacks the mod, the server switches you back when
+the typing would have finished.
+
+Worlds started in creative are left alone, and so are servers with `possession` off.
+
+### Things with nothing to see
+
+Knocks on the outside of your walls (three, evenly; sometimes once more, elsewhere), never on the
+wall you are looking at. Breathing on the far side of the wall you are facing. Footsteps behind you
+that stop a moment after you do. A door in your house that opens by itself and closes again when
+you are not looking. A chest lid lifting. Something heavy walking across your roof. Stone dragging
+on stone further into the cave, and chains. A scream a long way off at night. A whisper behind your
+head. A music box inside a wall. Someone crying, far off. Your VCR coming on by itself, playing a
+few seconds of static and stopping. Your own footsteps from yesterday. Doors, chests and eating
+that are yours, played back.
+
+Each event is picked from what fits where you are (indoors, facing a wall, moving, underground,
+outdoors at night). Each spends tension; their cooldown shortens with temper.
+
+### Its places
+
+**Five liminal structures** generate in the overworld (one structure set, spacing 12 chunks), built
+in code (`LiminalPiece`) so they can carry books, signs and loot:
+
+| Place | What it is | What it is for |
+|---|---|---|
+| The lookout | A grey wooden fire tower, scratched down one leg, tally marks on a sign at the top. | **The old camera**, bulbs, a note: it stops when you flash it; it came up the other side. |
+| The video shop | A shop front standing alone, closed. "AFTER HOURS RETURNS / please rewind". | **A VCR**, bulbs, the note that tells you where your tape is. |
+| The waiting room | Rows of chairs facing a dead screen, a string over every chair, a bell, a book open on a stand: *Please wait. NOW SERVING: 40.* | The book: the four pins, the flash, keep your eyes on it. |
+| The bedroom | Three walls of wallpaper in the woods, a made bed, a blown-out candle, a wardrobe door onto the wall. | **The Set**: lie down in it. |
+| The hallway | A corridor of doors standing in a field, all onto wallpaper, and one more at the end with no handle and no number. | **The Archive.** |
+
+To find them, from Act III, some mornings it leaves you a map with a red cross (in the chest by
+your bed, or on the bed), to each place in turn: the lookout first.
+
+**The Archive** (`thewake:archive`, its own chunk generator): the back room of a video shop, after
+hours, that does not end. Low stained ceiling tiles and fluorescent panels, some dead, some going.
+Worn carpet, yellowed wallpaper, shelf after shelf of tapes. It is laid out on seven-block rooms whose
+walls are solid, doorways or missing, from a hash of their position: one endless warren, the same
+every time. Fog the colour of old wallpaper; the hum of the lights. Some rooms are dark. Now and then:
+
+- a returns desk with a slot: put your hand in, and there is **your tape**, with your name on it;
+- a VCR behind the counter;
+- a door marked out, which takes you home.
+
+**The Set** (`thewake:set`): lie down in the bed in the woods and you are standing at the edge of
+a dark soundstage. In the middle is your house: what you built round your bed, copied block by
+block, without the ground, the trees, the roof, the lights or anything in the chests. There are
+stage lights on stands and a camera on a tripod pointed at your bed. In your bed, on its back, it
+is asleep. Quietly (no sprinting, no jumping, nothing hit near it) you can reach its pins and pull
+one out, at most two this way. If it wakes, it chases you through your own house. The exit is a door
+in a plywood flat at the edge of the stage.
+
+### Removing it: the last night
+
+1. **The camera**, from the lookout. A flash blinds anything with its eyes open for four seconds,
+   and erases its images. Bulbs are glass pane, glowstone dust and iron nugget.
+2. **Your tape**, from the Archive (through the hallway).
+3. **A VCR**, from the video shop or the Archive, or crafted.
+4. At night, put your tape in the VCR. It rewinds; it plays; it comes, furious, and does not give
+   up.
+5. **The pins.** Its face is a card held on by four pins. Flash it, and while it is blind, reach up
+   and pull one (right-click with an empty hand). It screams, the tape skips it away, and it comes
+   back faster. Pins pulled stay pulled between attempts.
+6. **Eject.** With the fourth pin out the card hangs by a corner and it stops running. Now it does
+   only what it always did: it moves only while you are not watching. And it makes you not watch:
+   your inventory opens by itself, your chat, your pause menu. Walk back to the machine with your
+   eyes on it, and press eject.
+7. **The end.** The card falls (*Its Face*, an item), the tape comes out blank, morning comes at
+   once (singleplayer), and the haunting is over for good.
+
+Dying or dawn ends an attempt; the tape stays in the machine and can be taken out again.
+
+### Sound
+
+Sixty-two recorded clips were sourced from OpenGameArt and the Internet Archive: CC-BY 3.0, CC0,
+Public Domain Mark and US government works only. Nothing NC, ND or share-alike, and nothing from
+sites whose terms forbid redistribution.
+
+- Each clip was cut, made mono, leveled and converted to OGG.
+- Where each came from and what was done to it is in `docs/sound-manifest.json`.
+- `CREDITS.md` carries the attributions.
+
+The mod's own sounds (the room tone, the tape motor, its breath) are unchanged.
+
+| Group | Sounds |
+|---|---|
+| Chase | three screams (one a voice actor's "Creaker"), a far scream, a drone, a heartbeat |
+| Body | climbing claws, iron groaning and tearing, a door landing, walls breaking, a splash, a muffled roar underwater, bones |
+| Torment | knocks, breathing behind walls, breathing close, stone scraping, chains, roof thuds, a door creaking, whispers, shod footsteps, a music box, crying, a shortwave radio |
+| Its places | an electrical buzz and a vent hum, looped |
+
+### Config and safety
+
+New options:
+
+- `angerRate`, `chases`
+- `chaseBreaksBlocks`, `chaseBreakLimit`, `chaseRipsDoors`
+- `possession`, `torment`
+- `chaseDamage`
+
+Hardcore still leaves you at half a heart unless `attackHardcoreKills` is on. Nothing is deleted:
+broken blocks drop and thrown doors become items. The meta effects (chat possession, forced screens)
+only act on the player's own client and are undone by the end of the sequence.
+
+### Considered, not taken
+
+- **Fake death screens and fake "joined the game" messages.** Overused, and they read as a crossover
+  from other mods.
+- **Breaking containers outside a siege.** Other mods were criticised for it.
+- **Following through portals.** Waiting where you come back is scarier and cheaper.
+- **A Wonderland-style hub with many dimensions.** Two places that are about you (your tapes, your
+  house) do more than forty that are not.
+
+### Verified in game
+
+A second scripted demo (`-PwakeDemo2`) stages every system in turn and screenshots it. It was run on
+both loaders. What it showed, and what was fixed because of it:
+
+- **The four faces** swap on the body and on every image.
+- **The chase in the open.** It runs in, in stop-motion, picks you up and the bite plays.
+  - Fixed: vanilla's "Press Left Shift to Dismount" prompt and its 400 health showing as rows of
+    hearts under yours.
+  - Fixed: you were held too low to see its face. You are now held in its hands, at arm's length,
+    eyes just under the card.
+- **Behind an iron door.** The first version climbed the room and broke in through the roof, which
+  is frightening but not what was asked. It now goes for an iron door before any wall: the door
+  comes out of the frame, lands in the grass, and it is standing in the empty doorway.
+- **A pillar with a lip.** Its face and long fingers come up over the edge; it breaks the lip it
+  is under, and has you.
+- **The pond.** It leaps across the water and the grab happens under it.
+- **The lookout.** Its card is over the edge behind you when you turn.
+- **The flash.** It blinds the body, which stands with its hands over the card.
+- **The chat box.** It types "stay", erases it, and types `/gamemode survival`.
+  - Fixed: without permission to run the command, the chat used to show it in red with "Unknown or
+    incomplete command". It no longer sends the command or shows command hints while it types; the
+    server switches you itself.
+- **Its places.** All five structures generate and dress correctly; the Archive and the Set
+  generate.
+  - Fixed: the Set was too dark to read, so soft light is now hung over it.
+- **The ending.** The last night starts, a pin comes out under the flash, the eject phase opens
+  your inventory by itself, and on eject the card comes off and the haunting ends.
+- **The experimental-settings warning.** Fixed: vanilla's "Worlds using Experimental Settings are
+  not supported" appeared on every world, because any non-vanilla dimension marks a world
+  experimental. A small mixin (`WorldDimensionsMixin`) exempts the Wake's two dimensions only.

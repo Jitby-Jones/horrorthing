@@ -98,6 +98,10 @@ public final class TheWakeNeoForge {
         registrar.playToClient(StoppedPayload.TYPE, StoppedPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
         registrar.playToClient(PhantomPayload.TYPE, PhantomPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
         registrar.playToClient(AttackPayload.TYPE, AttackPayload.CODEC, (payload, ctx) -> WakeNetwork.handleClient(payload));
+        registrar.playToClient(io.github.jitbyjones.thewake.net.WakeFxPayload.TYPE, io.github.jitbyjones.thewake.net.WakeFxPayload.CODEC,
+                (payload, ctx) -> WakeNetwork.handleClient(payload));
+        registrar.playToClient(io.github.jitbyjones.thewake.net.PossessPayload.TYPE, io.github.jitbyjones.thewake.net.PossessPayload.CODEC,
+                (payload, ctx) -> WakeNetwork.handleClient(payload));
         registrar.playToServer(ScreenPayload.TYPE, ScreenPayload.CODEC, (payload, ctx) -> {
             if (ctx.player() instanceof ServerPlayer player) {
                 WakeNetwork.handleServer(player, payload);

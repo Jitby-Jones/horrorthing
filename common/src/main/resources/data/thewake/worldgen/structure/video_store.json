@@ -1,0 +1,8 @@
+{
+  "type": "thewake:liminal",
+  "kind": "video_store",
+  "biomes": "#thewake:has_liminal",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "beard_thin"
+}

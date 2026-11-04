@@ -30,6 +30,10 @@ public final class Attack {
 
     public static boolean allowed(ServerPlayer player, HauntState state) {
         WakeConfig config = WakeConfig.get();
+        if (LastNight.ejecting(player)) {
+            return config.attacks && !player.isCreative() && !player.isSpectator() && player.isAlive()
+                    && player.serverLevel().getGameTime() >= state.nextAttackTick();
+        }
         Stage stage = state.stage();
         return config.attacks && stage.atLeast(Stage.HUNT) && !stage.atLeast(Stage.HUSH)
                 && player.serverLevel().getGameTime() >= state.nextAttackTick()
@@ -47,6 +51,10 @@ public final class Attack {
         WakeNetwork.send(player, new AttackPayload(from.x, from.y, from.z));
         Phantoms.remove(player, creature);
         Hunter.release(player, false);
+        if (LastNight.ejecting(player)) {
+            state.setNextAttackTick(level.getGameTime() + 400L);
+            LastNight.onEjectBite(player);
+        }
         Director.schedule(BITE_TICK, () -> bite(player));
         TheWake.LOG.debug("[{}] attack", player.getGameProfile().getName());
     }

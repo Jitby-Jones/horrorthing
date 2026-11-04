@@ -1,0 +1,86 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "thewake:flash_bulb",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:written_book",
+          "functions": [
+            {
+              "function": "minecraft:set_book_cover",
+              "title": "nightstand",
+              "author": "",
+              "generation": 3
+            },
+            {
+              "function": "minecraft:set_written_book_pages",
+              "pages": [
+                "Don't lie down in this bed.",
+                "If you do, you will be standing on a stage. It looks like your house. It is your house, put up out of wood for the cameras.",
+                "It sleeps in your bed while you are away. It doesn't sleep deeply. Don't run. Don't jump. Don't touch anything.",
+                "Its pins are just there, at the corners of the card. If you're careful you can take one out without it waking.",
+                "It woke."
+              ],
+              "mode": "replace_all"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:white_candle",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 2
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:paper",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "thewake:chests/bedroom"
+}

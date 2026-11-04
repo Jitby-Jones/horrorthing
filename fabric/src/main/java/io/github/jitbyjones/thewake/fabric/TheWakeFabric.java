@@ -37,6 +37,8 @@ public final class TheWakeFabric implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(StoppedPayload.TYPE, StoppedPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PhantomPayload.TYPE, PhantomPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(AttackPayload.TYPE, AttackPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(io.github.jitbyjones.thewake.net.WakeFxPayload.TYPE, io.github.jitbyjones.thewake.net.WakeFxPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(io.github.jitbyjones.thewake.net.PossessPayload.TYPE, io.github.jitbyjones.thewake.net.PossessPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ScreenPayload.TYPE, ScreenPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PausePayload.TYPE, PausePayload.CODEC);
         PayloadTypeRegistry.playC2S().register(HitchPayload.TYPE, HitchPayload.CODEC);

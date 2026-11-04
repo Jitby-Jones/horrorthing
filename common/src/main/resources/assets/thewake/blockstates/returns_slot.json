@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "thewake:block/returns_slot"
+    },
+    "facing=east": {
+      "model": "thewake:block/returns_slot",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "thewake:block/returns_slot",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "thewake:block/returns_slot",
+      "y": 270
+    }
+  }
+}

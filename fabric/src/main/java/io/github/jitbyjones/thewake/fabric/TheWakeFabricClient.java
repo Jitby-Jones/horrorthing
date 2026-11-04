@@ -33,6 +33,15 @@ public final class TheWakeFabricClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(StoppedPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
         ClientPlayNetworking.registerGlobalReceiver(PhantomPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
         ClientPlayNetworking.registerGlobalReceiver(AttackPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
+        ClientPlayNetworking.registerGlobalReceiver(io.github.jitbyjones.thewake.net.WakeFxPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
+        ClientPlayNetworking.registerGlobalReceiver(io.github.jitbyjones.thewake.net.PossessPayload.TYPE, (payload, ctx) -> WakeNetwork.handleClient(payload));
+
+        net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(io.github.jitbyjones.thewake.registry.WakeContent.WAKE.get(),
+                io.github.jitbyjones.thewake.client.entity.WakeEntityRenderer::new);
+        net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(io.github.jitbyjones.thewake.registry.WakeContent.FLUNG_BLOCK.get(),
+                io.github.jitbyjones.thewake.client.entity.FlungBlockRenderer::new);
+        net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlocks(net.minecraft.client.renderer.RenderType.cutout(),
+                io.github.jitbyjones.thewake.registry.WakeContent.UNMARKED_DOOR.get(), io.github.jitbyjones.thewake.registry.WakeContent.EXIT_DOOR.get());
 
         CoreShaderRegistrationCallback.EVENT.register(context -> {
             context.register(WakeShaders.RIBBON, DefaultVertexFormat.NEW_ENTITY, shader -> WakeShaders.ribbon = shader);

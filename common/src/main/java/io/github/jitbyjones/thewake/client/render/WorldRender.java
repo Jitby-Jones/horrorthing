@@ -68,6 +68,67 @@ public final class WorldRender {
             buffers.endBatch();
             drawCreatures(VIEW, PROJECTION, cam, camera.getLookVector(), partial, buffers);
         }
+        drawBodies(mc, VIEW, PROJECTION, cam, camera.getLookVector(), partial, buffers);
+    }
+
+    // ---- its body -----------------------------------------------------------------------------
+
+    private static float wear;
+
+    /** How much its body near you wears the picture down, 0..1. */
+    public static float bodyWear() {
+        return wear;
+    }
+
+    public static void forgetBodies() {
+        wear = 0.0F;
+    }
+
+    /**
+     * Its body, when it is out: drawn from the same skeleton as the images, in stop-motion. The
+     * picture of it only changes on a new frame of its clip (or every few ticks if it slides), so
+     * even running at you it comes in jerks, a few drawings a second.
+     */
+    private static void drawBodies(Minecraft mc, Matrix4f view, Matrix4f projection, Vec3 cam, Vector3f look, float partial,
+            MultiBufferSource.BufferSource buffers) {
+        float nearest = 0.0F;
+        boolean any = false;
+        for (net.minecraft.world.entity.Entity e : mc.level.entitiesForRendering()) {
+            if (!(e instanceof io.github.jitbyjones.thewake.entity.WakeEntity body) || body.isRemoved()) {
+                continue;
+            }
+            if (!any) {
+                buffers.endBatch();
+                any = true;
+            }
+            Vec3 actual = body.getPosition(partial);
+            boolean smooth = body.hasFlag(io.github.jitbyjones.thewake.entity.WakeEntity.FLAG_SMOOTH);
+            boolean cut = body.shownPos == null || body.clip().ordinal() != body.shownClip || body.frame() != body.shownFrame || smooth
+                    || actual.distanceToSqr(body.shownPos) > 9.0 || body.clientAge % 4 == 0 && actual.distanceToSqr(body.shownPos) > 0.04;
+            if (cut) {
+                body.shownPos = actual;
+                body.shownYaw = net.minecraft.util.Mth.rotLerp(partial, body.yRotO, body.getYRot());
+                body.shownClip = body.clip().ordinal();
+                body.shownFrame = body.frame();
+            }
+            if (body.hasFlag(io.github.jitbyjones.thewake.entity.WakeEntity.FLAG_LEAVING) && body.clientAge % 2 == 1) {
+                continue;
+            }
+            Vec3 at = body.shownPos;
+            double distance = at.distanceTo(cam);
+            float height = body.clip().height;
+            Vec3 centre = at.add(0.0, height * 0.5, 0.0).subtract(cam);
+            double along = centre.x * look.x() + centre.y * look.y() + centre.z * look.z();
+            nearest = Math.max(nearest, (float) net.minecraft.util.Mth.clamp(1.0 - distance / 24.0, 0.0, 1.0) * 0.5F);
+            if (along < -(height * 0.75 + 1.0) || distance > 160.0) {
+                continue;
+            }
+            CreatureRenderer.face(body.form().ordinal());
+            CreatureRenderer.draw(body.clip(), body.frame(), view, projection, at.subtract(cam), body.shownYaw, 1.0F,
+                    CreatureRenderer.Head.of(body, partial), CreatureRenderer.lightAt(mc.level, at, height), buffers, 0);
+        }
+        wear += (nearest - wear) * 0.1F;
+        CreatureRenderer.face(io.github.jitbyjones.thewake.client.ClientState.form);
     }
 
     /** Right after the level is drawn: keep its depth if a menu will draw the creature again. */
@@ -115,6 +176,7 @@ public final class WorldRender {
     /** Every creature this client knows about, with the given camera. */
     public static void drawCreatures(Matrix4f view, Matrix4f projection, Vec3 cam, Vector3f look, float partial,
             MultiBufferSource.BufferSource buffers) {
+        CreatureRenderer.face(io.github.jitbyjones.thewake.client.ClientState.form);
         for (ClientPhantom phantom : ClientPhantoms.all()) {
             if (!shouldDraw(phantom, cam, look)) {
                 continue;

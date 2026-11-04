@@ -737,7 +737,15 @@ def paint_head(p, n, ao, part):
 
 
 def make_texture(name, obj, parts, size, quick, painter, ao_distance):
-    pos, nor, ao, part, covered = bake_maps(obj, parts, size, quick, ao_distance)
+    """Bakes position, normal, occlusion and part maps for {obj} once, paints them, and returns the
+    bake so variants (the temper faces) can be painted from it again."""
+    baked = bake_maps(obj, parts, size, quick, ao_distance)
+    paint_texture(name, baked, painter)
+    return baked
+
+
+def paint_texture(name, baked, painter):
+    pos, nor, ao, part, covered = baked
     h, w = covered.shape
     flat = covered.reshape(-1)
     p = pos.reshape(-1, 3)[flat]
@@ -979,7 +987,14 @@ def main():
     unwrap([body], 0.003)
     unwrap([head_all], 0.004)
     make_texture("creature_body", body, {"body_skin": PART_SKIN, "balls": PART_BALL}, tex_size, args.quick, paint_body, 0.08)
-    make_texture("creature_head", head_all, {name: part for name, part, _ in head_parts}, tex_size, args.quick, paint_head, 0.03)
+    head_bake = make_texture("creature_head", head_all, {name: part for name, part, _ in head_parts}, tex_size, args.quick, paint_head, 0.03)
+    # Its temper, as faces (Reputation.Form in the mod): the same bake, a worse card each time.
+    global CARD_FRONT
+    calm = CARD_FRONT
+    for form, suffix in ((1, "uneasy"), (2, "angry"), (3, "furious")):
+        CARD_FRONT = card_mod.dress(CARD_TEX, form)
+        paint_texture("creature_head_" + suffix, head_bake, paint_head)
+    CARD_FRONT = calm
 
     print("decimating")
     body = decimate(body, 0.26)

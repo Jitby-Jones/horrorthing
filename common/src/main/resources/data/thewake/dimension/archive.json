@@ -1,0 +1,10 @@
+{
+  "type": "thewake:archive",
+  "generator": {
+    "type": "thewake:archive",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "thewake:archive"
+    }
+  }
+}

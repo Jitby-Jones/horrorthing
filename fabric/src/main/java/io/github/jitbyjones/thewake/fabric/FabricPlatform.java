@@ -37,6 +37,12 @@ final class FabricPlatform implements WakePlatform {
     }
 
     @Override
+    public <T extends net.minecraft.world.entity.LivingEntity> void registerAttributes(Supplier<net.minecraft.world.entity.EntityType<T>> type,
+            Supplier<net.minecraft.world.entity.ai.attributes.AttributeSupplier.Builder> attributes) {
+        net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry.register(type.get(), attributes.get());
+    }
+
+    @Override
     public void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
         if (ServerPlayNetworking.canSend(player, payload.type())) {
             ServerPlayNetworking.send(player, payload);

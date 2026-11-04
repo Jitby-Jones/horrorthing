@@ -23,6 +23,12 @@ final class TheWakeNeoForgeClient {
     static void init(IEventBus modBus) {
         WakeClient.init();
         modBus.addListener(TheWakeNeoForgeClient::registerShaders);
+        modBus.addListener((net.neoforged.neoforge.client.event.EntityRenderersEvent.RegisterRenderers event) -> {
+            event.registerEntityRenderer(io.github.jitbyjones.thewake.registry.WakeContent.WAKE.get(),
+                    io.github.jitbyjones.thewake.client.entity.WakeEntityRenderer::new);
+            event.registerEntityRenderer(io.github.jitbyjones.thewake.registry.WakeContent.FLUNG_BLOCK.get(),
+                    io.github.jitbyjones.thewake.client.entity.FlungBlockRenderer::new);
+        });
         modBus.addListener((RegisterClientReloadListenersEvent event) ->
                 event.registerReloadListener((ResourceManagerReloadListener) manager -> WakeClient.resourcesReloaded()));
 

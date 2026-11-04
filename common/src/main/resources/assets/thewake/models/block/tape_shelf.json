@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "thewake:block/tape_shelf_front",
+    "side": "thewake:block/tape_shelf_side",
+    "top": "thewake:block/tape_shelf_top"
+  }
+}

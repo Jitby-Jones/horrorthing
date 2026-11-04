@@ -23,6 +23,10 @@ public interface WakePlatform {
      */
     <T, R extends T> Supplier<R> register(Registry<T> registry, String path, Supplier<R> factory);
 
+    /** Default attributes for one of the mod's living entities. */
+    <T extends net.minecraft.world.entity.LivingEntity> void registerAttributes(Supplier<net.minecraft.world.entity.EntityType<T>> type,
+            Supplier<net.minecraft.world.entity.ai.attributes.AttributeSupplier.Builder> attributes);
+
     void sendToPlayer(ServerPlayer player, CustomPacketPayload payload);
 
     /** Client side only. */

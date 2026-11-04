@@ -83,6 +83,15 @@ public final class HauntState {
     private int nightPresence;
     private int nightIdle;
 
+    // what it thinks of you ------------------------------------------------------------------
+    private Reputation reputation = new Reputation();
+
+    // where you were before its places --------------------------------------------------------
+    private net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> returnDimension = net.minecraft.world.level.Level.OVERWORLD;
+    @Nullable
+    private Vec3 returnPos;
+    private float returnYaw;
+
     // bookkeeping ---------------------------------------------------------------------------
     private final Set<String> flags = new HashSet<>();
     private final Object2LongOpenHashMap<String> cooldowns = new Object2LongOpenHashMap<>();
@@ -100,6 +109,14 @@ public final class HauntState {
     public transient long sleepStartDayTime = -1L;
     public transient boolean sleepProcessed;
     public transient int lastHitchTick = -100000;
+    /** How afraid the player ought to be right now, 0..1: what the director spends. */
+    public transient float tension;
+    /** Game time of the last real scare: after one, a long quiet. */
+    public transient long lastScareTick = -100000L;
+    /** Its body is out in the world after this player right now. */
+    public transient boolean chasing;
+    /** The last form the client was told about. */
+    public transient int syncedForm = -1;
 
     public HauntState(UUID id) {
         this.id = id;
@@ -364,6 +381,21 @@ public final class HauntState {
     public int nightPresence() { return nightPresence; }
     public int nightIdle() { return nightIdle; }
 
+    // ---- reputation -----------------------------------------------------------------------
+
+    public Reputation reputation() { return reputation; }
+
+    public void setReturnPoint(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension, Vec3 pos, float yaw) {
+        returnDimension = dimension;
+        returnPos = pos;
+        returnYaw = yaw;
+    }
+
+    public net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> returnDimension() { return returnDimension; }
+    @Nullable
+    public Vec3 returnPos() { return returnPos; }
+    public float returnYaw() { return returnYaw; }
+
     // ---- bookkeeping ----------------------------------------------------------------------
 
     public boolean hasFlag(String flag) { return flags.contains(flag); }
@@ -402,6 +434,8 @@ public final class HauntState {
         oldBed = null;
         keptBed = null;
         gainedToday = 0.0F;
+        reputation = new Reputation();
+        tension = 0.0F;
     }
 
     // ---- persistence ----------------------------------------------------------------------
@@ -480,6 +514,16 @@ public final class HauntState {
             cd.putLong(e.getKey(), e.getLongValue());
         }
         tag.put("Cooldowns", cd);
+        tag.put("Reputation", reputation.save());
+        if (returnPos != null) {
+            CompoundTag ret = new CompoundTag();
+            ret.putString("Dim", returnDimension.location().toString());
+            ret.putDouble("X", returnPos.x);
+            ret.putDouble("Y", returnPos.y);
+            ret.putDouble("Z", returnPos.z);
+            ret.putFloat("Yaw", returnYaw);
+            tag.put("Return", ret);
+        }
         return tag;
     }
 
@@ -540,6 +584,16 @@ public final class HauntState {
         CompoundTag cd = tag.getCompound("Cooldowns");
         for (String key : cd.getAllKeys()) {
             s.cooldowns.put(key, cd.getLong(key));
+        }
+        s.reputation = Reputation.load(tag.getCompound("Reputation"));
+        if (tag.contains("Return")) {
+            CompoundTag ret = tag.getCompound("Return");
+            net.minecraft.resources.ResourceLocation dim = net.minecraft.resources.ResourceLocation.tryParse(ret.getString("Dim"));
+            if (dim != null) {
+                s.returnDimension = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, dim);
+                s.returnPos = new Vec3(ret.getDouble("X"), ret.getDouble("Y"), ret.getDouble("Z"));
+                s.returnYaw = ret.getFloat("Yaw");
+            }
         }
         return s;
     }

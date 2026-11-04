@@ -1,0 +1,13 @@
+{
+  "type": "thewake:set",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "thewake:set",
+      "features": false,
+      "lakes": false,
+      "layers": [],
+      "structure_overrides": []
+    }
+  }
+}

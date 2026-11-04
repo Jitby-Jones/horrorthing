@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "front": "thewake:block/returns_slot_front",
+    "side": "thewake:block/returns_slot_side",
+    "top": "thewake:block/returns_slot_side"
+  }
+}

@@ -24,7 +24,7 @@ public final class Haunt {
         if (player.isSpectator() || player.gameMode.getGameModeForPlayer() == GameType.SPECTATOR || !player.isAlive()) {
             return false;
         }
-        return WakeConfig.get().allowsDimension(player.level().dimension().location().toString());
+        return WakeConfig.get().allowsDimension(player.level().dimension().location().toString()) || WakeDimensions.isOurs(player.level());
     }
 
     /** Before the quiet nights are over nothing accumulates and nothing happens. */
@@ -87,7 +87,7 @@ public final class Haunt {
         }
         state.syncDirty = false;
         WakeNetwork.send(player, new SyncPayload(state.clarity(), state.stage().ordinal(), Hunter.hunting(player), state.ended(),
-                state.lastLayDownDayTime()));
+                state.lastLayDownDayTime(), Temper.form(state).ordinal(), state.tension, state.chasing, Temper.pins(state)));
     }
 
     public static int stat(ServerPlayer player, net.minecraft.resources.ResourceLocation custom) {

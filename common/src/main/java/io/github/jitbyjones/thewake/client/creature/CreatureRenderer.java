@@ -59,6 +59,37 @@ public final class CreatureRenderer {
 
     private CreatureRenderer() {}
 
+    /** Its temper, as a face: the card it wears is worse in each. */
+    private static int face;
+    private static final ResourceLocation[] FACES = {
+            null, TheWake.id("textures/entity/creature_head_uneasy.png"), TheWake.id("textures/entity/creature_head_angry.png"),
+            TheWake.id("textures/entity/creature_head_furious.png")};
+    private static final Map<ResourceLocation, Boolean> PRESENT = new HashMap<>();
+
+    public static void face(int form) {
+        face = Mth.clamp(form, 0, FACES.length - 1);
+    }
+
+    private static ResourceLocation texture(CreatureModel.Group group) {
+        if (face > 0 && group.texture.getPath().endsWith("creature_head.png")) {
+            ResourceLocation alt = FACES[face];
+            boolean present = PRESENT.computeIfAbsent(alt, id -> Minecraft.getInstance().getResourceManager().getResource(id).isPresent());
+            if (present) {
+                return alt;
+            }
+        }
+        return group.texture;
+    }
+
+    /** The light at a point and a height above it: its own corner, not yours. */
+    public static int lightAt(net.minecraft.world.level.Level level, Vec3 at, float height) {
+        BlockPos head = BlockPos.containing(at.x, at.y + Math.min(height * 0.85, height - 0.2), at.z);
+        int atHead = LevelRenderer.getLightColor(level, head);
+        int atBody = LevelRenderer.getLightColor(level, BlockPos.containing(at.x, at.y + 0.5, at.z));
+        return LightTexture.pack(Math.max(LightTexture.block(atHead), LightTexture.block(atBody)),
+                Math.max(LightTexture.sky(atHead), LightTexture.sky(atBody)));
+    }
+
     /** Joints the procedural layers need, looked up once by name. */
     private record Joints(int[] neck, int head, int jaw, int shoulderL, int shoulderR, int[] fingersL, int[] fingersR,
             int eyeJointL, int eyeJointR, int lidL, int lidR,
@@ -114,6 +145,7 @@ public final class CreatureRenderer {
         skeleton = null;
         probe = null;
         failed = false;
+        PRESENT.clear();
     }
 
     /** The light at the creature: its own corner, not yours. */
@@ -144,6 +176,18 @@ public final class CreatureRenderer {
 
         public Head withLids(float closed) {
             return new Head(yaw, pitch, roll, jaw, fingers, shrug, closed, eyesOnYou, eyesApart);
+        }
+
+        /** Its body: the server turns the head; the temper and the pins hang the card. */
+        public static Head of(io.github.jitbyjones.thewake.entity.WakeEntity body, float partial) {
+            int form = body.form().ordinal();
+            int pins = body.pins();
+            boolean shut = body.hasFlag(io.github.jitbyjones.thewake.entity.WakeEntity.FLAG_EYES_SHUT);
+            float roll = form * 6.0F + pins * 8.0F;
+            float jaw = body.jaw() + form * 5.0F + (pins >= 3 ? 18.0F : 0.0F);
+            float twitch = form >= 2 && body.clientAge % 37 < 2 ? (body.clientAge % 2 == 0 ? 6.0F : -6.0F) : 0.0F;
+            return new Head(body.headYaw() + twitch, body.headPitch() + pins * 4.0F, roll, jaw, form * 8.0F, form * 3.0F,
+                    shut ? 1.0F : 0.2F + form * 0.05F, 1.0F, form >= 3 ? 6.0F : 0.0F);
         }
 
         public static Head of(ClientPhantom p, float partial) {
@@ -225,7 +269,7 @@ public final class CreatureRenderer {
             } else {
                 buffer = skinned(group, g, s, fingerprint, light);
             }
-            RenderType type = RenderType.entityCutoutNoCull(group.texture);
+            RenderType type = RenderType.entityCutoutNoCull(texture(group));
             type.setupRenderState();
             setLights(model);
             ShaderInstance shader = RenderSystem.getShader();

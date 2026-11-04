@@ -43,10 +43,24 @@ final class NeoForgePlatform implements WakePlatform {
         return deferred.register(path, factory);
     }
 
+    private final java.util.List<Runnable> attributeQueue = new java.util.ArrayList<>();
+    private net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent attributeEvent;
+
     void registerAll(IEventBus modBus) {
         for (DeferredRegister<?> register : registers.values()) {
             register.register(modBus);
         }
+        modBus.addListener((net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent event) -> {
+            attributeEvent = event;
+            attributeQueue.forEach(Runnable::run);
+            attributeEvent = null;
+        });
+    }
+
+    @Override
+    public <T extends net.minecraft.world.entity.LivingEntity> void registerAttributes(Supplier<net.minecraft.world.entity.EntityType<T>> type,
+            Supplier<net.minecraft.world.entity.ai.attributes.AttributeSupplier.Builder> attributes) {
+        attributeQueue.add(() -> attributeEvent.put(type.get(), attributes.get().build()));
     }
 
     @Override

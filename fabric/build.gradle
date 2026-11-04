@@ -32,6 +32,11 @@ loom {
                 programArgs('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
                 vmArg('-Dthewake.demo=true')
             }
+            // ./gradlew :fabric:runClient -PwakeDemo2 : stage the expansion (chase, places, chat box) and screenshot it.
+            if (project.hasProperty('wakeDemo2')) {
+                programArgs('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
+                vmArg('-Dthewake.demo2=true')
+            }
         }
         server {
             server()

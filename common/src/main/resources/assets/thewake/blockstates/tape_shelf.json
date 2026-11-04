@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "thewake:block/tape_shelf"
+    },
+    "facing=east": {
+      "model": "thewake:block/tape_shelf",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "thewake:block/tape_shelf",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "thewake:block/tape_shelf",
+      "y": 270
+    }
+  }
+}

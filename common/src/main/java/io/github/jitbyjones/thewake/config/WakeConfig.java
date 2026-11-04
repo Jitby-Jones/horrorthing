@@ -49,6 +49,16 @@ public final class WakeConfig {
     public float attackDamage = 12.0f;
     public boolean attackHardcoreKills = false;
 
+    // ---- its temper and its body --------------------------------------------------------
+    public double angerRate = 1.0;
+    public boolean chases = true;
+    public boolean chaseBreaksBlocks = true;
+    public int chaseBreakLimit = 48;
+    public boolean chaseRipsDoors = true;
+    public boolean possession = true;
+    public boolean torment = true;
+    public float chaseDamage = 10.0f;
+
     // ---- presentation -------------------------------------------------------------------
     public boolean nightSkyShader = true;
     public float soundVolume = 1.0f;
@@ -76,6 +86,14 @@ public final class WakeConfig {
         HELP.put("attacks", "From Act IV it attacks if it reaches you while you are not watching. At most once per in-game day.");
         HELP.put("attackDamage", "Damage of an attack, in half-hearts (12 = six hearts). Armour does not help.");
         HELP.put("attackHardcoreKills", "Hardcore: attacks leave you at half a heart instead of killing you, unless this is on.");
+        HELP.put("angerRate", "Multiplier for how fast it gets angry with you (hurting it, staying up, cheesing it). 0 keeps it calm forever.");
+        HELP.put("chases", "When it is angry enough and you are afraid enough, its body comes after you for real. Off: it only ever watches.");
+        HELP.put("chaseBreaksBlocks", "In a chase it breaks through walls, pillars and boxes to reach you. Blocks drop as items; bedrock and the like stop it.");
+        HELP.put("chaseBreakLimit", "Most blocks it may break in one chase or siege.");
+        HELP.put("chaseRipsDoors", "It tears iron doors and trapdoors off their hinges and throws them. They drop as items where they land.");
+        HELP.put("possession", "Creative or spectator mode does not save you: it takes your chat box and types /gamemode survival. Never in worlds first started in creative.");
+        HELP.put("torment", "Things with nothing to see: knocking on your walls, breathing behind them, steps behind you, doors, scraping in caves.");
+        HELP.put("chaseDamage", "Damage when it catches you in a chase, in half-hearts. Armour does not help.");
         HELP.put("nightSkyShader", "Client: the finale's custom ground shader. Turn off if a shader pack breaks it.");
         HELP.put("soundVolume", "Client: volume multiplier for this mod's own sounds (0.0 - 1.0).");
         HELP.put("screamVolume", "Client: volume of the one loud sound in the mod, when it attacks (0.0 - 1.0).");
@@ -113,6 +131,9 @@ public final class WakeConfig {
         soundVolume = Math.max(0.0f, Math.min(soundVolume, 1.0f));
         screamVolume = Math.max(0.0f, Math.min(screamVolume, 1.0f));
         if (!(attackDamage >= 0.0f) || attackDamage > 1000.0f) attackDamage = 12.0f;
+        if (!(chaseDamage >= 0.0f) || chaseDamage > 1000.0f) chaseDamage = 10.0f;
+        if (!(angerRate >= 0.0) || angerRate > 20.0) angerRate = 1.0;
+        chaseBreakLimit = Math.max(0, Math.min(chaseBreakLimit, 4096));
         if (dimensions == null || dimensions.isEmpty()) {
             dimensions = new ArrayList<>(List.of("minecraft:overworld"));
         }
