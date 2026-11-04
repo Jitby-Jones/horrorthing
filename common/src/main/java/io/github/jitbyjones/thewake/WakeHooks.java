@@ -42,12 +42,17 @@ public final class WakeHooks {
 
     public static void onServerStopped() {
         Director.onServerStopped();
+        io.github.jitbyjones.thewake.haunt.Lure.onServerStopped();
+        io.github.jitbyjones.thewake.haunt.Marks.onServerStopped();
+        io.github.jitbyjones.thewake.haunt.Strings.onServerStopped();
+        io.github.jitbyjones.thewake.haunt.ShedTape.onServerStopped();
     }
 
     public static void onJoin(ServerPlayer player) {
         Lapses.onLogin(player);
         io.github.jitbyjones.thewake.haunt.DemoScript.onJoin(player);
         io.github.jitbyjones.thewake.haunt.DemoExpansion.onJoin(player);
+        io.github.jitbyjones.thewake.haunt.DemoForms.onJoin(player);
     }
 
     public static void onLeave(ServerPlayer player) {
@@ -57,6 +62,7 @@ public final class WakeHooks {
 
     public static void onDeath(ServerPlayer player) {
         StoppedManager.onDeath(player);
+        io.github.jitbyjones.thewake.haunt.Pursuit.onDeath(player);
     }
 
     /**

@@ -44,9 +44,31 @@ public final class CreatureRenderer {
     private static final Vector3f UP = new Vector3f(0.0F, 1.0F, 0.0F);
     private static final int MAX_SKINNED = 6;
 
-    @Nullable
-    private static CreatureModel model;
-    private static boolean failed;
+    /**
+     * One model per temper (see tools/creature/build_form.py): the WATCHER's, and UNEASY's, ANGRY's
+     * and FURIOUS's own, each with its own skeleton, parts and clips. A temper whose model is
+     * missing falls back to the WATCHER's, wearing that temper's face.
+     */
+    private static final class Slot {
+        final int index;
+        @Nullable
+        CreatureModel model;
+        boolean failed;
+        @Nullable
+        CreatureSkeleton skeleton;
+        @Nullable
+        CreatureSkeleton probe;
+        Joints joints;
+
+        Slot(int index) {
+            this.index = index;
+        }
+    }
+
+    private static final String[] FORM_MODELS = {null, "uneasy", "angry", "furious"};
+    private static final Slot[] SLOTS = {new Slot(0), new Slot(1), new Slot(2), new Slot(3)};
+    /** The slot being drawn or asked about (set from {@link #face}). */
+    private static Slot slot = SLOTS[0];
     @Nullable
     private static CreatureSkeleton skeleton;
     @Nullable
@@ -66,12 +88,49 @@ public final class CreatureRenderer {
             TheWake.id("textures/entity/creature_head_furious.png")};
     private static final Map<ResourceLocation, Boolean> PRESENT = new HashMap<>();
 
+    /** Which temper is drawn next: its own model, or the WATCHER's with its face. */
     public static void face(int form) {
         face = Mth.clamp(form, 0, FACES.length - 1);
+        slot = resolve(face);
+        skeleton = slot.skeleton;
+        probe = slot.probe;
+        joints = slot.joints;
+    }
+
+    private static Slot resolve(int form) {
+        Slot s = SLOTS[form];
+        if (s.model == null && !s.failed) {
+            load(s);
+        }
+        if (s.model == null && form != 0) {
+            s = SLOTS[0];
+            if (s.model == null && !s.failed) {
+                load(s);
+            }
+        }
+        return s;
+    }
+
+    private static void load(Slot s) {
+        try {
+            ResourceLocation at = s.index == 0 ? CreatureModel.LOCATION
+                    : TheWake.id("models/creature/creature_" + FORM_MODELS[s.index] + ".bin.gz");
+            s.model = CreatureModel.load(Minecraft.getInstance().getResourceManager(), at);
+            s.skeleton = new CreatureSkeleton(s.model);
+            s.probe = new CreatureSkeleton(s.model);
+            s.joints = Joints.of(s.model);
+        } catch (Exception e) {
+            s.failed = true;
+            if (s.index == 0) {
+                TheWake.LOG.error("Could not load the creature model", e);
+            } else {
+                TheWake.LOG.warn("No model for {}; it will wear its face on the WATCHER's", FORM_MODELS[s.index]);
+            }
+        }
     }
 
     private static ResourceLocation texture(CreatureModel.Group group) {
-        if (face > 0 && group.texture.getPath().endsWith("creature_head.png")) {
+        if (face > 0 && slot.index == 0 && group.texture.getPath().endsWith("creature_head.png")) {
             ResourceLocation alt = FACES[face];
             boolean present = PRESENT.computeIfAbsent(alt, id -> Minecraft.getInstance().getResourceManager().getResource(id).isPresent());
             if (present) {
@@ -96,7 +155,11 @@ public final class CreatureRenderer {
             CreatureModel.Attachment headCentre, CreatureModel.Attachment right, CreatureModel.Attachment forward,
             CreatureModel.Attachment up, CreatureModel.Attachment eyeL, CreatureModel.Attachment eyeR) {
         static Joints of(CreatureModel m) {
-            int[] neck = java.util.stream.Stream.of("neck0", "neck1", "neck2").mapToInt(m::joint).filter(j -> j >= 0).toArray();
+            // The head turns on the last three joints of the neck, however long the neck is.
+            int top = m.joint("neck2");
+            int mid = top >= 0 ? m.parents[top] : -1;
+            int low = mid >= 0 ? m.parents[mid] : -1;
+            int[] neck = java.util.stream.IntStream.of(low, mid, top).filter(j -> j >= 0).toArray();
             int head = -1;
             int jaw = -1;
             for (CreatureModel.Group g : m.groups) {
@@ -120,18 +183,10 @@ public final class CreatureRenderer {
 
     @Nullable
     public static CreatureModel model() {
-        if (model == null && !failed) {
-            try {
-                model = CreatureModel.load(Minecraft.getInstance().getResourceManager());
-                skeleton = new CreatureSkeleton(model);
-                probe = new CreatureSkeleton(model);
-                joints = Joints.of(model);
-            } catch (Exception e) {
-                failed = true;
-                TheWake.LOG.error("Could not load the creature model", e);
-            }
+        if (slot.model == null && !slot.failed || slot.skeleton == null) {
+            face(face);
         }
-        return model;
+        return slot.model;
     }
 
     /** Resource reload: drop the mesh and every buffer; they are rebuilt on demand. */
@@ -141,10 +196,13 @@ public final class CreatureRenderer {
         SKINNED.clear();
         RIGID.values().forEach(VertexBuffer::close);
         RIGID.clear();
-        model = null;
+        for (int i = 0; i < SLOTS.length; i++) {
+            SLOTS[i] = new Slot(i);
+        }
+        slot = SLOTS[0];
         skeleton = null;
         probe = null;
-        failed = false;
+        joints = null;
         PRESENT.clear();
     }
 
@@ -373,10 +431,10 @@ public final class CreatureRenderer {
     }
 
     private static VertexBuffer rigid(CreatureModel.Group group, int g, int light) {
-        long key = ((long) g << 40) | (light & 0xFFFFFFFFL);
+        long key = ((long) slot.index << 56) | ((long) g << 40) | (light & 0xFFFFFFFFL);
         VertexBuffer buffer = RIGID.get(key);
         if (buffer == null) {
-            if (RIGID.size() > 24) {
+            if (RIGID.size() > 600) {
                 RIGID.values().forEach(VertexBuffer::close);
                 RIGID.clear();
             }
@@ -388,7 +446,7 @@ public final class CreatureRenderer {
     }
 
     private static VertexBuffer skinned(CreatureModel.Group group, int g, CreatureSkeleton s, long fingerprint, int light) {
-        long key = fingerprint * 31L + ((long) g << 40) + (light & 0xFFFFFFFFL);
+        long key = fingerprint * 31L + ((long) slot.index << 58) + ((long) g << 40) + (light & 0xFFFFFFFFL);
         VertexBuffer buffer = SKINNED.get(key);
         if (buffer != null) {
             return buffer;

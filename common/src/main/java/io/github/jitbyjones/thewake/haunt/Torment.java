@@ -354,6 +354,7 @@ public final class Torment {
     }
 
     private static void play(ServerPlayer player, SoundEvent sound, Vec3 at, float volume, float pitch) {
+        Lure.set(player, at);
         if (!player.hasDisconnected()) {
             Household.send(player, sound, SoundSource.AMBIENT, at, volume, pitch);
         }

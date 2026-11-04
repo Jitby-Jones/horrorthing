@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "turn=0": {
+      "model": "thewake:block/spike_mark"
+    },
+    "turn=1": {
+      "model": "thewake:block/spike_mark",
+      "y": 90
+    },
+    "turn=2": {
+      "model": "thewake:block/spike_mark",
+      "y": 180
+    },
+    "turn=3": {
+      "model": "thewake:block/spike_mark",
+      "y": 270
+    }
+  }
+}

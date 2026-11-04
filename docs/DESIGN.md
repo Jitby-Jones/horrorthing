@@ -1352,3 +1352,237 @@ both loaders. What it showed, and what was fixed because of it:
 - **The experimental-settings warning.** Fixed: vanilla's "Worlds using Experimental Settings are
   not supported" appeared on every world, because any non-vanilla dimension marks a world
   experimental. A small mixin (`WorldDimensionsMixin`) exempts the Wake's two dimensions only.
+
+## Pass 13: Three bodies, and teeth
+
+The ask:
+
+- Its forms should be different bodies, mutated versions of the WATCHER, each with its own model and
+  animations, not the same body wearing a worse card.
+- It should be dangerous: attacks happen more often. When asked whether to guard against being
+  killed over and over, the answer was no: if you make it angry enough, it keeps coming.
+- Go beyond what is there.
+
+### Research
+
+A research pass looked at how other horror mods change their monsters and how they pace danger:
+
+- **Forms.**
+  - The Obsessed turns more spider-like as its mood falls.
+  - Midnight Lurker and From The Caves change it in stages.
+  - wonderland's no_one stretches into the Hangman.
+- **Pacing.**
+  - Cave Dweller Evolved: a 5 to 10 minute gap, with chases cut off at 30 s.
+  - The Man From The Fog: chases of 20 to 50 s.
+- **What players complain about.**
+  - Spawn spam, and aggro through walls.
+  - Sleep traps, and theft across dimensions.
+  - Monsters waiting at spawn after death.
+
+Ideas taken from it:
+
+- A frame rate that rises with anger, as a threat meter.
+- Spike marks on the floor.
+- Strings from the ceiling.
+- Going to look at a noise as the trigger for danger.
+
+### Round 3: nine bodies, in pixel art
+
+`tools/concepts/draw_forms.py` draws each variant in `tools/creature/forms.py` from the rig the 3D
+models use.
+
+**Each variant sheet** (in `docs/concepts/forms/`) shows:
+
+- a turnaround;
+- silhouettes beside the WATCHER;
+- the face close up;
+- the mutation close up;
+- a scene where you would meet it.
+
+**Each temper's board** puts its three variants side by side.
+
+**UNEASY:**
+- *Rigged*: a stop-motion rig arm bolted between its shoulder blades holds it at impossible leans.
+- *Second pair*: small child's hands out under its ribs.
+- *Reversed*: bird's legs, and the card on sideways.
+
+**ANGRY:**
+- *Opened*: ribs that were fingers, and the face moved into its chest.
+- *Two heads*: on a forked neck.
+- *Long neck*: nine vertebrae.
+
+**FURIOUS:**
+- *Spider*: four arms, and the card torn into mandibles over the real face.
+- *Unwound*: armature, tape and a shredded card.
+- *Every face*: cards pinned all over it.
+
+### Critique and choice
+
+An independent critique, working only from the images, picked **Second pair**, **Long neck** and
+**Unwound**. As a set they run: it knocks, it looks in, it comes in. Each has one tell at a
+distance: pale hands at the chest, a face too high, a body that skips frames.
+
+Rejected:
+
+- *Rigged*: a prop, not a mutation.
+- *Reversed*: skinwalker legs.
+- *Opened*: The Thing's chest-mouth.
+- *Two heads*: reads as bunny ears, or Siren Head.
+- *Spider*: the Exorcist spider-walk cliché.
+- *Every face*: a Demogorgon head.
+
+The critique also asked for these changes, all made:
+
+- **Every card.** The drawn red smile is gone from every card (it was the Joker's). Each temper's card
+  is redressed (`card.dress`):
+  - creased, unpinned and pinned back on crooked;
+  - the stitches across the chin half pulled out;
+  - torn at the eyes, with the number crossed out in pencil.
+- **The small hands carry through.** They wring in UNEASY, are clasped and still in ANGRY, and pull
+  tape out of its own joints in FURIOUS.
+- **UNEASY's hook** is the pick: the small hand takes your light. It shuffles; the high marionette
+  knees and the long-arm lunge are cut.
+- **ANGRY's neck.**
+  - It is nine lacquered vertebrae, angular, folded like an accordion at about the WATCHER's
+    height, unfolding one vertebra at a time with a click.
+  - Its reaches are fixed clips: over a wall, up a pillar, in through a window. The neck's path is
+    never solved at runtime.
+- **FURIOUS.**
+  - Its tape is thin glossy strips on hinges, from cassette hubs at its shoulders and hips.
+  - Its card is shredder output, pinned at the brow and fanned, with the real face behind.
+  - It is not taller (ANGRY owns height). It is stooped, with the face low and forward.
+
+### The three models
+
+`tools/creature/form_models.py` defines each temper. Each is:
+
+- the base skeleton with parts added or rebuilt;
+- its card, moved to where it keeps its head;
+- every clip the game plays (the base clips adapted frame by frame), plus its own.
+
+`tools/creature/build_form.py` builds each one in headless Blender the way `build_creature.py`
+builds the WATCHER, and exports `creature_<form>.bin.gz`:
+
+- **Body.** A skin over the skeleton, painted by bone rather than by place, so hands are pale wherever
+  the skeleton has hands (the small ones whiter and wetter), and FURIOUS is gunmetal threaded rod
+  with rust in the threads.
+- **ANGRY's neck** is rigid lacquered segments and balls, so its folds stay sharp.
+- **FURIOUS's parts** are rigid groups on their own joints:
+  - tape strips, cassette hubs, wing nuts;
+  - shards of the black hanging off its limbs like split sleeves;
+  - the real face, its chin on the jaw.
+
+The renderer keeps one model per temper (with the WATCHER's as the fallback). Every image and body
+uses the current temper's model, so the attack, the gaze and the paperdoll all use the right head.
+
+| | Joints | Clips | Own clips |
+|---|---|---|---|
+| UNEASY | 219 | 26 | `knock` (three, a pause, one; the long arms still), `pick` |
+| ANGRY | 225 | 27 | `reach_wall`, `reach_up`, `reach_window` |
+| FURIOUS | 261 | 24 | its own `run` (frames held and skipped) and `lunge` (low, the jaw down, tape out of it) |
+
+### What each one does
+
+- **UNEASY takes your light.**
+  - Out of an ambush, the small hand takes the torch or lantern out of your hand.
+  - Stalking unseen, it takes the torches off your walls as it passes, one by one.
+  - Shut in, you hear the small hand knock: three, a pause, one.
+- **ANGRY reaches.**
+  - If you are close and something is between you (a wall, a pillar, a window), it does not go round
+    or climb. The neck unfolds over or up or in, and at the end of it the jaw drops and it bites,
+    while its body stays out in the dark.
+  - That beats walls, pillars and windows, which are a player's whole safety kit.
+- **FURIOUS comes like a chewed tape.**
+  - It holds, then is suddenly further along (the move is real, on the server, so it is where you
+    saw it), with a tape-chew warble and a tracking line.
+  - For a few frames there are copies of it where it was and halfway, flickering.
+  - It sheds tape across every doorway it passes and strings more across yours at night. Walking
+    through rustles, and it hears you.
+
+### More dangerous
+
+**Chases**:
+
+| | WATCHER | UNEASY | ANGRY | FURIOUS |
+|---|---|---|---|---|
+| Fear needed | — | 0.72 | 0.62 | 0.50 |
+| Gap between chases | — | 6 min | 4 min | 90 s |
+
+**Ambushes** (new; `ambushes` option):
+
+- **Where it waits.** Round the next corner ahead of you, or behind a door you are walking toward.
+- **The tell.** When you come close everything goes quiet: the drone, your heartbeat. You get 14,
+  10 or 6 ticks by temper.
+- **The strike.**
+  - UNEASY takes your light (or touches your shoulder, and tonight chases as if angry).
+  - ANGRY and FURIOUS jump. Step aside and it lands badly and lies stunned for 1.5 s.
+
+**Pounces** (new): angry or worse, at 4.5 to 8.5 blocks in a chase, it drops low, the tell, and jumps.
+
+**Going to look** (new): when something knocks, scrapes or opens your door and you go there, it is
+sometimes still there. The chance is 15% uneasy, 40% angry and 80% furious.
+
+**Furious stalks without stopping**:
+
+- Followers come every 40 s, from 12 to 18 blocks, and stand closer, down to 3.5 blocks.
+- Looked at, it holds for 12 ticks, then either chases or does not leave.
+- Every knock and glimpse raises fear 1.6 times as much.
+- The quiet after a scare lasts 45 s, not 120.
+
+**Its bite** is 20% harder for each catch in the last three days, up to 40%.
+
+**No kill-loop guard**, by request. It does not start a chase when you respawn. But the
+anger-weighted stalking and events mean a furious creature finds you again quickly. Dying while it
+is angry, you wake to "PLAY ▶" on the VCR counter.
+
+### Things it leaves in the world
+
+- **Spike marks.**
+  - An X of grey tape on the floor, where it means to stand: on your routes, and beside your bed
+    when it is furious.
+  - Come near one in the dark, look away, and when you look back it may be standing on it.
+  - Scraping one off cancels it, and it minds.
+- **Strings.**
+  - Twine hanging from a low ceiling to about face height, creaking: it is up there, holding the
+    other end.
+  - Walk under it and it drops on you. Cut it and it falls in front of you and lies there a moment.
+- **Its tape** (FURIOUS), across doorways, as above.
+
+### Its frame rate is its temper
+
+Its body moves in stop-motion, and the angrier it is, the smoother:
+
+- **WATCHER** on fours: a new position every fourth tick.
+- **UNEASY** on threes.
+- **ANGRY** on twos.
+- **FURIOUS** on ones: smooth in a way nothing animated by hand should be.
+
+Players learn that smooth means angry, and that silence means now.
+
+### Verified in game
+
+A third scripted demo (`-PwakeDemo3`) stages each temper and what it does, and screenshots it. It
+was run on both loaders. Both dedicated servers boot with everything above.
+
+- **The four bodies.** Every image and body uses the current temper's own model:
+  - the WATCHER;
+  - UNEASY's crooked card and small clasped hands;
+  - ANGRY's face, carried higher;
+  - FURIOUS's armature, with the fanned strips over the real face.
+- **Their clips.** Seen from the side:
+  - UNEASY: knock, pick and the shuffle;
+  - ANGRY: the three reaches;
+  - FURIOUS: run, lunge and scream.
+- **UNEASY takes your light.** Holding a torch, you walk into its ambush. It is crouched there; the
+  small hand comes out, and the torch is gone from your hand.
+- **ANGRY over a wall.** With a three-block cobblestone wall between you, its face comes over the
+  top and the jaw drops into the bite, its body never leaving the far side.
+- **ANGRY up a pillar.** Up three blocks, you look down at it; the neck comes straight up to your
+  level and bites.
+  - Fixed: its black lacquer neck was invisible against the night sky, and the face looked
+    unattached. The vertebrae now have the body's dull lacquer highlight, and the rods a sheen.
+- **FURIOUS.** Through a doorway, a skip with the tape tearing, then the grab. Held, you see the
+  real face it was wearing the card over, and its bite takes more because it had already caught you
+  twice that session.
+- **The traces.** A spike mark on the floor, a string from the ceiling, and its tape across a
+  doorway.

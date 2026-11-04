@@ -31,6 +31,11 @@ neoForge {
                 programArguments.addAll('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
                 systemProperty('thewake.demo2', 'true')
             }
+            // ./gradlew :neoforge:runClient -PwakeDemo3 : stage the tempers as models and what they do.
+            if (project.hasProperty('wakeDemo3')) {
+                programArguments.addAll('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
+                systemProperty('thewake.demo3', 'true')
+            }
         }
         server {
             server()

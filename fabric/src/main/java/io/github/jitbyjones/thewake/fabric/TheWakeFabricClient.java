@@ -41,7 +41,9 @@ public final class TheWakeFabricClient implements ClientModInitializer {
         net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(io.github.jitbyjones.thewake.registry.WakeContent.FLUNG_BLOCK.get(),
                 io.github.jitbyjones.thewake.client.entity.FlungBlockRenderer::new);
         net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlocks(net.minecraft.client.renderer.RenderType.cutout(),
-                io.github.jitbyjones.thewake.registry.WakeContent.UNMARKED_DOOR.get(), io.github.jitbyjones.thewake.registry.WakeContent.EXIT_DOOR.get());
+                io.github.jitbyjones.thewake.registry.WakeContent.UNMARKED_DOOR.get(), io.github.jitbyjones.thewake.registry.WakeContent.EXIT_DOOR.get(),
+                io.github.jitbyjones.thewake.registry.WakeContent.SPIKE_MARK.get(), io.github.jitbyjones.thewake.registry.WakeContent.HANGING_STRING.get(),
+                io.github.jitbyjones.thewake.registry.WakeContent.SHED_TAPE.get());
 
         CoreShaderRegistrationCallback.EVENT.register(context -> {
             context.register(WakeShaders.RIBBON, DefaultVertexFormat.NEW_ENTITY, shader -> WakeShaders.ribbon = shader);

@@ -1,0 +1,11 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "thewake:block/shed_tape"
+    },
+    "axis=z": {
+      "model": "thewake:block/shed_tape",
+      "y": 90
+    }
+  }
+}

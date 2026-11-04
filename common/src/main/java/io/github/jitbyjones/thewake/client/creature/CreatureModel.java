@@ -130,7 +130,12 @@ public final class CreatureModel {
     }
 
     public static CreatureModel load(ResourceManager resources) throws IOException {
-        try (InputStream raw = resources.open(LOCATION);
+        return load(resources, LOCATION);
+    }
+
+    /** Each temper is its own model: {@code models/creature/creature_<form>.bin.gz}. */
+    public static CreatureModel load(ResourceManager resources, ResourceLocation location) throws IOException {
+        try (InputStream raw = resources.open(location);
                 DataInputStream in = new DataInputStream(new BufferedInputStream(new GZIPInputStream(raw, 1 << 16), 1 << 16))) {
             return read(in);
         }

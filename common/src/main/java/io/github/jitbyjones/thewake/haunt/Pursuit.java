@@ -111,23 +111,28 @@ public final class Pursuit {
             return false;
         }
         Reputation.Form form = Temper.form(state);
-        boolean angry = form.atLeast(Reputation.Form.ANGRY) || form.atLeast(Reputation.Form.UNEASY) && state.stage().atLeast(Stage.HUNT);
-        return angry && state.tension >= 0.55F;
+        boolean tagged = !state.ready("tagged", player.level().getGameTime());
+        boolean angry = form.atLeast(Reputation.Form.ANGRY) || form.atLeast(Reputation.Form.UNEASY) && (state.stage().atLeast(Stage.HUNT) || tagged);
+        return angry && state.tension >= (form == Reputation.Form.FURIOUS ? 0.3F : 0.55F);
     }
 
     /** Every second: the director's chance to send its body. */
     static void tick(ServerPlayer player, HauntState state, long gameTime) {
+        afterRespawn(player, state);
         if (body(player) != null) {
+            return;
+        }
+        if (Strings.tick(player, state, gameTime, Temper.form(state), allowed(player, state) && !Hunter.hunting(player))) {
             return;
         }
         if (state.chasing) {
             state.chasing = false;
             state.syncDirty = true;
         }
-        if (state.reputation().chasePending() && allowed(player, state)) {
+        if (state.reputation().chasePending() && allowed(player, state) && player.isAlive() && player.tickCount > 40) {
             // You left in the middle of it. It waited.
             Temper.setChasePending(state, false);
-            Vec3 at = near(player, 7.0, 12.0, true);
+            Vec3 at = near(player, 10.0, 16.0, true);
             if (at != null) {
                 spawn(player, at, WakeBrain.Purpose.CHASE);
             }
@@ -136,6 +141,15 @@ public final class Pursuit {
         if (gameTime % 20L != 0L || !allowed(player, state) || Hunter.hunting(player) || player.isPassenger() && !(player.getVehicle() instanceof net.minecraft.world.entity.vehicle.Boat)) {
             return;
         }
+        // You went to see what that was.
+        if (Lure.tick(player, state, gameTime)) {
+            return;
+        }
+        // It is standing on its mark.
+        if (Marks.tick(player, state, gameTime, Temper.form(state))) {
+            return;
+        }
+        ShedTape.tick(player, state, gameTime, Temper.form(state));
         ServerLevel level = player.serverLevel();
         Reputation.Form form = Temper.form(state);
         if (!form.atLeast(Reputation.Form.UNEASY) || !dark(player)) {
@@ -153,9 +167,20 @@ public final class Pursuit {
                 return;
             }
         }
-        long cooldown = form == Reputation.Form.FURIOUS ? 20L * 60 * 4 : 20L * 60 * 7;
-        if (wantsChase(player, state, 0.0) && since > cooldown && sinceScare > 20L * 90 && state.tension >= 0.78F
-                && random.nextFloat() < 0.08F + (state.tension - 0.78F)) {
+        // How afraid you have to be, and how long since the last one, by its temper.
+        float need = switch (form) {
+            case FURIOUS -> 0.5F;
+            case ANGRY -> 0.62F;
+            default -> 0.72F;
+        };
+        long cooldown = switch (form) {
+            case FURIOUS -> 20L * 90;
+            case ANGRY -> 20L * 60 * 4;
+            default -> 20L * 60 * 6;
+        };
+        long breath = form == Reputation.Form.FURIOUS ? 20L * 30 : 20L * 60;
+        if (wantsChase(player, state, 0.0) && since > cooldown && sinceScare > breath && state.tension >= need
+                && random.nextFloat() < 0.08F + (state.tension - need)) {
             boolean shut = io.github.jitbyjones.thewake.entity.Obstacles.enclosed(level, player.blockPosition(), 70);
             Vec3 at = shut ? near(player, 4.0, 10.0, true) : chaseStart(player, state);
             if (at != null) {
@@ -163,9 +188,18 @@ public final class Pursuit {
                 return;
             }
         }
-        // Otherwise, sometimes, it only follows you.
-        if (state.tension >= 0.42F && sinceScare > 20L * 120 && since > 20L * 60 * 3 && random.nextFloat() < 0.02F + state.tension * 0.02F) {
-            Vec3 at = near(player, 20.0, 28.0, true);
+        // Or it waits for you, round the next corner, behind the next door.
+        if (Ambush.tick(player, state, gameTime, form, sinceScare)) {
+            return;
+        }
+        // Otherwise it follows you. Furious, it hardly ever stops following you, and from closer.
+        boolean furious = form == Reputation.Form.FURIOUS;
+        float stalkNeed = furious ? 0.2F : form == Reputation.Form.ANGRY ? 0.32F : 0.42F;
+        long stalkGap = furious ? 20L * 40 : form == Reputation.Form.ANGRY ? 20L * 75 : 20L * 90;
+        float stalkChance = furious ? 0.06F + state.tension * 0.05F : form == Reputation.Form.ANGRY ? 0.03F + state.tension * 0.03F
+                : 0.02F + state.tension * 0.02F;
+        if (state.tension >= stalkNeed && sinceScare > stalkGap && since > stalkGap && random.nextFloat() < stalkChance) {
+            Vec3 at = furious ? near(player, 12.0, 18.0, true) : near(player, 20.0, 28.0, true);
             if (at != null) {
                 spawn(player, at, WakeBrain.Purpose.STALK);
                 state.lastScareTick = gameTime;
@@ -238,11 +272,12 @@ public final class Pursuit {
                     Temper.escaped(state);
                     Temper.provoke(owner, state, Temper.Provocation.ESCAPED);
                 }
-                state.tension = 0.12F;
+                state.tension = Math.max(0.12F, afterFloor(state));
             }
             case CAUGHT -> {
                 Temper.provoke(owner, state, Temper.Provocation.CAUGHT);
-                state.tension = 0.05F;
+                Temper.caught(state, now);
+                state.tension = Math.max(0.05F, afterFloor(state));
             }
             case STUNNED_AWAY -> state.tension = 0.2F;
             case GAVE_UP -> state.tension = Math.min(state.tension, 0.3F);
@@ -259,6 +294,34 @@ public final class Pursuit {
         Vec3 at = body.position().add(0.0, 1.6, 0.0);
         Household.send(owner, WakeRegistry.STATIC.get(), SoundSource.HOSTILE, at, 0.8F * WakeConfig.get().soundVolume, 0.9F);
         body.discard();
+    }
+
+    /**
+     * How afraid you stay after one: the angrier it is, the less time it gives you before the next.
+     * Furious, it hardly lets you get your breath back.
+     */
+    private static float afterFloor(HauntState state) {
+        return switch (Temper.form(state)) {
+            case FURIOUS -> 0.55F;
+            case ANGRY -> 0.32F;
+            default -> 0.0F;
+        };
+    }
+
+    /** You died angry: when you are back, the VCR shows the tape is still playing. */
+    public static void onDeath(ServerPlayer player) {
+        HauntState state = Haunt.state(player);
+        if (Haunt.awake(state) && !Temper.removed(state) && Temper.form(state).atLeast(Reputation.Form.ANGRY)) {
+            state.setFlag("play_card");
+        }
+    }
+
+    /** Every tick: back on your feet after dying angry, the VCR shows it is still playing. */
+    static void afterRespawn(ServerPlayer player, HauntState state) {
+        if (state.hasFlag("play_card") && player.isAlive() && player.tickCount > 20) {
+            state.clearFlag("play_card");
+            WakeNetwork.send(player, WakeFxPayload.of(WakeFxPayload.PLAY, 1.0F, 70.0F));
+        }
     }
 
     /** Its owner logged off or went through a portal with it out. */

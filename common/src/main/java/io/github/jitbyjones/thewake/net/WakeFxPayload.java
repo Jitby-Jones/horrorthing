@@ -35,6 +35,12 @@ public record WakeFxPayload(int kind, double x, double y, double z, float amount
     public static final int LOST_TIME = 13;
     /** A photograph was taken of you: a click and a flash, behind you. */
     public static final int SHUTTER = 14;
+    /** PLAY: you died, and the tape is still running. extra = ticks to show it. */
+    public static final int PLAY = 15;
+    /** The tell before it strikes: everything goes quiet. extra = ticks. */
+    public static final int HUSH = 16;
+    /** FURIOUS skipped like a chewed tape from x, y, z: copies of it there for a moment. extra = its yaw. */
+    public static final int SKIP = 17;
 
     public static final Type<WakeFxPayload> TYPE = new Type<>(TheWake.id("wake_fx"));
     public static final StreamCodec<FriendlyByteBuf, WakeFxPayload> CODEC = StreamCodec.of(

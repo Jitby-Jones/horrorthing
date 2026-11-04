@@ -80,5 +80,8 @@
   "item.thewake.map.video_store": "Returns",
   "item.thewake.map.hallway": "A Hallway",
   "item.thewake.map.bedroom": "A Bed",
-  "item.thewake.map.waiting_room": "Please Wait"
+  "item.thewake.map.waiting_room": "Please Wait",
+  "block.thewake.spike_mark": "Spike Mark",
+  "block.thewake.hanging_string": "String",
+  "block.thewake.shed_tape": "Tape"
 }

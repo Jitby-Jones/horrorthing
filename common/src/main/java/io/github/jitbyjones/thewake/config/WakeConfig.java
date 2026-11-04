@@ -58,6 +58,7 @@ public final class WakeConfig {
     public boolean possession = true;
     public boolean torment = true;
     public float chaseDamage = 10.0f;
+    public boolean ambushes = true;
 
     // ---- presentation -------------------------------------------------------------------
     public boolean nightSkyShader = true;
@@ -93,6 +94,7 @@ public final class WakeConfig {
         HELP.put("chaseRipsDoors", "It tears iron doors and trapdoors off their hinges and throws them. They drop as items where they land.");
         HELP.put("possession", "Creative or spectator mode does not save you: it takes your chat box and types /gamemode survival. Never in worlds first started in creative.");
         HELP.put("torment", "Things with nothing to see: knocking on your walls, breathing behind them, steps behind you, doors, scraping in caves.");
+        HELP.put("ambushes", "It waits for you round corners and behind doors, and drops on you, instead of only chasing.");
         HELP.put("chaseDamage", "Damage when it catches you in a chase, in half-hearts. Armour does not help.");
         HELP.put("nightSkyShader", "Client: the finale's custom ground shader. Turn off if a shader pack breaks it.");
         HELP.put("soundVolume", "Client: volume multiplier for this mod's own sounds (0.0 - 1.0).");

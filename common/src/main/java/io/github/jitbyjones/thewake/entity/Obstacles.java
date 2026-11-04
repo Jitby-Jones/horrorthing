@@ -53,6 +53,40 @@ public final class Obstacles {
         return state.is(Blocks.IRON_TRAPDOOR) && !state.getValue(TrapDoorBlock.OPEN);
     }
 
+    /** A torch or a lantern. */
+    static boolean isLight(BlockState state) {
+        return state.is(net.minecraft.world.level.block.Blocks.TORCH) || state.is(net.minecraft.world.level.block.Blocks.WALL_TORCH)
+                || state.is(net.minecraft.world.level.block.Blocks.SOUL_TORCH) || state.is(net.minecraft.world.level.block.Blocks.SOUL_WALL_TORCH)
+                || state.is(net.minecraft.world.level.block.Blocks.LANTERN) || state.is(net.minecraft.world.level.block.Blocks.SOUL_LANTERN)
+                || state.is(net.minecraft.world.level.block.Blocks.REDSTONE_TORCH) || state.is(net.minecraft.world.level.block.Blocks.REDSTONE_WALL_TORCH);
+    }
+
+    /** The nearest torch or lantern within {@code radius} of a place. */
+    @javax.annotation.Nullable
+    static net.minecraft.core.BlockPos lightNear(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos at, int radius) {
+        net.minecraft.core.BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (net.minecraft.core.BlockPos p : net.minecraft.core.BlockPos.betweenClosed(at.offset(-radius, -2, -radius), at.offset(radius, 3, radius))) {
+            if (isLight(level.getBlockState(p))) {
+                double d = p.distSqr(at);
+                if (d < bestD) {
+                    bestD = d;
+                    best = p.immutable();
+                }
+            }
+        }
+        return best;
+    }
+
+    /** The door is open, or not there any more. */
+    static boolean isOpenDoor(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
+            return state.getValue(net.minecraft.world.level.block.DoorBlock.OPEN);
+        }
+        return state.getCollisionShape(level, pos).isEmpty();
+    }
+
     static boolean isClosedGate(BlockState state) {
         return state.getBlock() instanceof FenceGateBlock && !state.getValue(FenceGateBlock.OPEN);
     }

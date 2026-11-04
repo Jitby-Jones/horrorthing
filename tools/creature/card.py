@@ -216,10 +216,10 @@ def back(W, H, card, seed=5):
 
 
 def dress(L, form, seed=11):
-    """The card as its temper changes it (see Reputation.Form in the mod): 1 creased, with a smile
-    somebody drew on it in red crayon, too wide; 2 stained, bleeding from the eyes, the smile
-    scribbled out; 3 torn at the eyes, another card stapled over a corner of it, its number crossed
-    out and the next one written in."""
+    """The card as its temper changes it (see Reputation.Form in the mod): 1 creased, unpinned and
+    pinned back on crooked, the old pin holes empty; 2 stained, bleeding from the eyes, the
+    stitches across the chin half pulled out, threads hanging; 3 torn at the eyes, another card
+    stapled over a corner of it, its number crossed out and the next one written in."""
     W, H, S = L["W"], L["H"], L["S"]
     u, v, card, holes = L["u"], L["v"], L["card"], L["holes"]
     wear = (0.0, 0.7, 1.2, 1.6)[form]
@@ -252,26 +252,25 @@ def dress(L, form, seed=11):
     pts = [a + (b - a) * t + np.array([0, rng.normal(0, 0.6 * S)]) for t in np.linspace(0, 1, 40)]
     stroke(pts, 0.8 * S, (120, 108, 86), 0.7)
     stroke([(x + 1.5 * S, y + 1.0 * S) for x, y in pts], 0.6 * S, (236, 228, 206), 0.5)
-    # The smile, in red crayon, far wider than its mouth.
-    crayon = (178, 36, 26)
-    smile = []
-    for t in np.linspace(-1, 1, 36):
-        x = (0.5 + t * 0.36) * W
-        y = (MOUTH_V + 0.012 - 0.07 * (1 - t * t) * -1 - 0.075 * t * t) * H
-        smile.append((x, y))
-    if form == 1:
-        stroke(smile, 2.2 * S, crayon, 0.85, broken=0.25)
+    # Where it used to be pinned: holes with rust round them, and nothing in them.
+    for (pu, pv) in ((0.13, 0.08), (0.88, 0.06), (0.92, 0.33)):
+        dot(pu * W, pv * H, 2.6 * S, (120, 70, 40), 0.55)
+        dot(pu * W, pv * H, 1.1 * S, (20, 12, 10), 1.0)
     if form >= 2:
-        stroke(smile, 2.2 * S, crayon, 0.6, broken=0.35)
-        # Scribbled over, hard, in black.
-        x = 0.12 * W
-        zig = []
-        up = True
-        while x < 0.88 * W:
-            zig.append((x, (MOUTH_V + (-0.03 if up else 0.05)) * H + rng.normal(0, 2 * S)))
-            x += rng.uniform(3, 7) * S
-            up = not up
-        stroke(zig, 1.3 * S, (30, 24, 22), 0.85)
+        # The stitches across the chin: half of them pulled out, the thread hanging.
+        for cu_ in CUT_U:
+            for i in range(5):
+                if rng.random() < 0.5:
+                    continue
+                y = (MOUTH_V + (14 + i * (380 - MOUTH_V * 380 - 30) / 5) / 380) * H
+                x = cu_ * W + rng.normal(0, 1.5 * S)
+                n = int(rng.integers(6, 14))
+                path = [(x, y)]
+                for k in range(n):
+                    path.append((path[-1][0] + rng.normal(0, 0.6 * S), path[-1][1] + 1.6 * S))
+                stroke(path, 0.45 * S, (60, 40, 30), 0.9)
+                dot(x - 3 * S, y - 2 * S, 0.8 * S, (30, 20, 16), 0.9)
+                dot(x + 3 * S, y + 2 * S, 0.8 * S, (30, 20, 16), 0.9)
     if form >= 3:
         # Torn out from the eyes: splits in the paper, a dark edge and a pale fibre beside it.
         for (eu, ev) in (EYE_L, EYE_R):
@@ -304,6 +303,7 @@ def dress(L, form, seed=11):
             stroke([(sx, y0 + 3 * S), (sx + 5 * S, y0 + 3 * S)], 0.7 * S, (150, 150, 156), 1.0)
         # Its number, crossed out; the next one written beside it.
         stroke([(14 * S, 15 * S), (30 * S, 13 * S)], 0.8 * S, (30, 24, 22), 0.9)
-        stroke([(34 * S, 12 * S), (40 * S, 11 * S), (34 * S, 17 * S), (40 * S, 17 * S), (34 * S, 22 * S)], 1.0 * S, crayon, 0.85)
-        stroke([(44 * S, 12 * S), (50 * S, 12 * S), (44 * S, 22 * S), (50 * S, 22 * S)], 1.0 * S, crayon, 0.85)
+        pencil = (58, 54, 50)
+        stroke([(34 * S, 12 * S), (40 * S, 11 * S), (34 * S, 17 * S), (40 * S, 17 * S), (34 * S, 22 * S)], 0.8 * S, pencil, 0.85)
+        stroke([(44 * S, 12 * S), (50 * S, 12 * S), (44 * S, 22 * S), (50 * S, 22 * S)], 0.8 * S, pencil, 0.85)
     return np.clip(img, 0, 255)

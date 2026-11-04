@@ -1,0 +1,151 @@
+{
+ "version": 3,
+ "form": "furious",
+ "joints": 261,
+ "clips": {
+  "stand": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.574
+  },
+  "stoop": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.285
+  },
+  "crouch": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 1.575
+  },
+  "peek_right": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.619
+  },
+  "peek_left": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.616
+  },
+  "reach": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.488
+  },
+  "bedside": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.31
+  },
+  "lie": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 1.056
+  },
+  "walk": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 2.44
+  },
+  "stoop_walk": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 2.136
+  },
+  "crawl": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 1.442
+  },
+  "lunge": {
+   "frames": 10,
+   "fps": 12.0,
+   "loop": false,
+   "height": 2.588
+  },
+  "rise": {
+   "frames": 12,
+   "fps": 8.0,
+   "loop": false,
+   "height": 2.7
+  },
+  "lean_right": {
+   "frames": 6,
+   "fps": 6.0,
+   "loop": false,
+   "height": 2.646
+  },
+  "lean_left": {
+   "frames": 6,
+   "fps": 6.0,
+   "loop": false,
+   "height": 2.65
+  },
+  "run": {
+   "frames": 8,
+   "fps": 12.0,
+   "loop": true,
+   "height": 2.725
+  },
+  "climb": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 4.08
+  },
+  "leap": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 2.822
+  },
+  "hold": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 3.029
+  },
+  "throw": {
+   "frames": 6,
+   "fps": 12.0,
+   "loop": false,
+   "height": 3.461
+  },
+  "scream": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 3.526
+  },
+  "stunned": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 3.248
+  },
+  "ledge": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 0.636
+  },
+  "swim": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 1.02
+  }
+ }
+}

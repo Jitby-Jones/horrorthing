@@ -17,7 +17,13 @@ public final class Tension {
     private Tension() {}
 
     public static void spike(HauntState state, float amount) {
-        state.tension = Mth.clamp(state.tension + amount, 0.0F, 1.0F);
+        // The angrier it is, the more every knock and glimpse counts.
+        float k = amount > 0.0F ? switch (Temper.form(state)) {
+            case FURIOUS -> 1.6F;
+            case ANGRY -> 1.25F;
+            default -> 1.0F;
+        } : 1.0F;
+        state.tension = Mth.clamp(state.tension + amount * k, 0.0F, 1.0F);
     }
 
     /** Once a second. */
@@ -62,9 +68,11 @@ public final class Tension {
                 rise *= 0.5F;
             }
             rise *= (float) Math.sqrt(WakeConfig.get().pace);
-            // The long quiet after a scare.
-            if (gameTime - state.lastScareTick < 20L * 120) {
-                rise *= 0.15F;
+            // The long quiet after a scare: shorter and less quiet the angrier it is.
+            Reputation.Form form = Temper.form(state);
+            long quiet = form == Reputation.Form.FURIOUS ? 20L * 45 : form == Reputation.Form.ANGRY ? 20L * 90 : 20L * 120;
+            if (gameTime - state.lastScareTick < quiet) {
+                rise *= form == Reputation.Form.FURIOUS ? 0.6F : form == Reputation.Form.ANGRY ? 0.35F : 0.15F;
             }
         }
         state.tension = Mth.clamp(state.tension + rise, 0.0F, 1.0F);

@@ -130,6 +130,26 @@ public final class Temper {
         state.reputation().grabs++;
     }
 
+    /** It had you: remembered for three days. The more it has had you lately, the harder it bites. */
+    public static void caught(HauntState state, long gameTime) {
+        long window = 24000L * 3;
+        boolean a = !state.ready("catch_a", gameTime);
+        boolean b = !state.ready("catch_b", gameTime);
+        if (!a) {
+            state.cooldown("catch_a", gameTime, window);
+        } else if (!b) {
+            state.cooldown("catch_b", gameTime, window);
+        } else {
+            // both remembered: the older one is replaced
+            String older = state.ready("catch_a", gameTime + window / 2) ? "catch_a" : "catch_b";
+            state.cooldown(older, gameTime, window);
+        }
+    }
+
+    public static int recentCatches(HauntState state, long gameTime) {
+        return (state.ready("catch_a", gameTime) ? 0 : 1) + (state.ready("catch_b", gameTime) ? 0 : 1);
+    }
+
     public static void possessed(HauntState state) {
         state.reputation().possessions++;
     }

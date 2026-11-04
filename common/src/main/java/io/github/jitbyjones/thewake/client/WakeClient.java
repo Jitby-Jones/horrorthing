@@ -76,6 +76,7 @@ public final class WakeClient {
         RoomTone.tick();
         DemoClient.tick();
         DemoExpansionClient.tick();
+        DemoFormsClient.tick();
     }
 
     /**

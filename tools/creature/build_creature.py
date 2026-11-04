@@ -1109,10 +1109,10 @@ def main():
 # Previews: read the exported binary back and render it
 # ---------------------------------------------------------------------------------------------
 
-def render_previews(pose_names):
+def render_previews(pose_names, model_path=None, prefix=""):
     """Cycles renders: a full view in a blocky room corner and a face close-up, lit by one harsh
     light beside the camera, like a flash photo in a dark room."""
-    model = export_v3.read_bin(os.path.join(MODEL_DIR, "creature.bin.gz"))
+    model = export_v3.read_bin(model_path or os.path.join(MODEL_DIR, "creature.bin.gz"))
     os.makedirs(PREVIEW_DIR, exist_ok=True)
     for pose_name in pose_names:
         clip, _, frame = pose_name.partition(":")
@@ -1180,7 +1180,7 @@ def render_previews(pose_names):
             flash.data.energy = 220.0 * (np.linalg.norm(target - light_pos) / 5.3) ** 2
             flash.location = tuple(light_pos)
             flash.rotation_euler = look_rotation(target - light_pos)
-            scene.render.filepath = os.path.join(PREVIEW_DIR, pose_name.replace(":", "_") + suffix + ".png")
+            scene.render.filepath = os.path.join(PREVIEW_DIR, prefix + pose_name.replace(":", "_") + suffix + ".png")
             bpy.ops.render.render(write_still=True)
 
 

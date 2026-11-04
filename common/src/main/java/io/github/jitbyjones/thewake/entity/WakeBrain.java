@@ -3,6 +3,7 @@ package io.github.jitbyjones.thewake.entity;
 import io.github.jitbyjones.thewake.TheWake;
 import io.github.jitbyjones.thewake.config.WakeConfig;
 import io.github.jitbyjones.thewake.creature.CreaturePose;
+import io.github.jitbyjones.thewake.haunt.Ambush;
 import io.github.jitbyjones.thewake.haunt.Attack;
 import io.github.jitbyjones.thewake.haunt.Haunt;
 import io.github.jitbyjones.thewake.haunt.HauntState;
@@ -59,10 +60,10 @@ import net.minecraft.world.phys.Vec3;
  * </ul>
  */
 public final class WakeBrain {
-    public enum Mode { STALK, LURK, CHASE, SEARCH, SIEGE, GRAB, STUNNED, LEAP, SWIM, RIP, BREAK, LEAVE, SLEEP }
+    public enum Mode { STALK, LURK, CHASE, SEARCH, SIEGE, GRAB, STUNNED, LEAP, SWIM, RIP, BREAK, LEAVE, SLEEP, AMBUSH, POUNCE, TAG, PICK, REACH }
 
     /** How it came to be out: decides what it does first. */
-    public enum Purpose { STALK, CHASE, SIEGE, LURK, LAST_NIGHT, ASLEEP }
+    public enum Purpose { STALK, CHASE, SIEGE, LURK, LAST_NIGHT, ASLEEP, AMBUSH }
 
     private static final double GRAB_RANGE = 1.9;
     /** Struggles (sneak presses and the dismounts they cause) that get you free before the bite. */
@@ -117,6 +118,29 @@ public final class WakeBrain {
     // stun
     private int stunTotal;
 
+    // ambush and pounce
+    private Ambush.Kind ambushKind = Ambush.Kind.CORNER;
+    @Nullable
+    private BlockPos ambushWatch;
+    private int strikeIn;
+    private boolean pouncing;
+    private boolean lowLeap;
+    private int pounceCooldown = 60;
+
+    // uneasy: taking your light
+    @Nullable
+    private BlockPos pickAt;
+    private boolean pickHand;
+    private int pickCooldown = 100;
+    private Mode afterPick = Mode.LEAVE;
+
+    // angry: the neck
+    private CreaturePose reachClip = CreaturePose.REACH_WALL;
+    private int reachCooldown = 80;
+
+    // furious: the chewed tape
+    private int chewClock = 30;
+
     // siege
     private int siegePhase;
     @Nullable
@@ -166,19 +190,57 @@ public final class WakeBrain {
         RandomSource random = body.getRandom();
         budget = switch (why) {
             case CHASE -> 20 * (24 + 8 * form.ordinal() + random.nextInt(12));
-            case STALK -> 20 * (50 + random.nextInt(50));
+            case STALK -> form == Reputation.Form.FURIOUS ? 20 * (90 + random.nextInt(60)) : 20 * (50 + random.nextInt(50));
             case LURK -> 20 * 120;
             case SIEGE -> 20 * 90;
             case LAST_NIGHT -> Integer.MAX_VALUE;
             case ASLEEP -> Integer.MAX_VALUE;
+            case AMBUSH -> 20 * 60;
         };
         switch (why) {
             case CHASE, LAST_NIGHT -> beginChase(owner, true);
             case SIEGE -> set(Mode.SIEGE);
             case LURK -> set(Mode.LURK);
             case ASLEEP -> set(Mode.SLEEP);
+            case AMBUSH -> set(Mode.AMBUSH);
             default -> set(Mode.STALK);
         }
+    }
+
+    /** It heard you (its tape rustling where you went through it): it knows where you are. */
+    public void heard(ServerPlayer owner, Vec3 at) {
+        lastKnown = at;
+        HauntState state = Haunt.state(owner);
+        if (mode == Mode.STALK || mode == Mode.SEARCH || mode == Mode.AMBUSH) {
+            if (Temper.form(state).atLeast(Reputation.Form.ANGRY) && Pursuit.wantsChase(owner, state, body.distanceTo(owner))) {
+                beginChase(owner, false);
+            } else {
+                body.getNavigation().moveTo(at.x, at.y, at.z, 0.9);
+            }
+        }
+    }
+
+    /** Off the ceiling and straight down on you (see {@code Strings}). */
+    public void dropOn(ServerPlayer owner) {
+        HauntState state = Haunt.state(owner);
+        Pursuit.chaseStarted(owner, state, body);
+        budget = Math.max(budget, 20 * 30);
+        pouncing = true;
+        lowLeap = true;
+        body.setNoGravity(false);
+        beginLeap(owner, owner.position());
+    }
+
+    /** The string was cut: it has fallen, and lies there a moment before it gets up. */
+    public void fallen(ServerPlayer owner) {
+        budget = Math.max(budget, 20 * 30);
+        stun(owner, 40, Mode.CHASE);
+    }
+
+    /** What sort of wait this is, and what to watch (the door it is behind, the mark it is on). */
+    public void ambush(Ambush.Kind kind, @Nullable BlockPos watch) {
+        ambushKind = kind;
+        ambushWatch = watch;
     }
 
     private void set(Mode next) {
@@ -206,11 +268,15 @@ public final class WakeBrain {
             Possession.demand(owner, state, mode == Mode.GRAB ? Possession.Why.HELD : Possession.Why.CHASED);
         }
         updateSight(owner);
+        if (life % 10 == 0 && (mode == Mode.CHASE || mode == Mode.STALK || mode == Mode.SEARCH)) {
+            io.github.jitbyjones.thewake.haunt.ShedTape.trail(owner, body);
+        }
         if (mode != Mode.GRAB && mode != Mode.LEAVE && mode != Mode.SLEEP && --budget <= 0) {
             giveUp(owner, state);
             return;
         }
-        body.setNoGravity(mode == Mode.LEAP || mode == Mode.SWIM || mode == Mode.LURK && atLedge || mode == Mode.SLEEP);
+        body.setNoGravity(mode == Mode.LEAP || mode == Mode.SWIM || mode == Mode.LURK && atLedge || mode == Mode.SLEEP
+                || mode == Mode.AMBUSH && ambushKind == Ambush.Kind.CEILING);
         switch (mode) {
             case STALK -> stalk(owner, state);
             case LURK -> lurk(owner, state);
@@ -225,6 +291,11 @@ public final class WakeBrain {
             case BREAK -> breakBlock(owner, state);
             case LEAVE -> leave(owner, state);
             case SLEEP -> sleep(owner, state);
+            case AMBUSH -> waitFor(owner, state);
+            case POUNCE -> pounce(owner, state);
+            case TAG -> tagged(owner, state);
+            case PICK -> picking(owner, state);
+            case REACH -> reaching(owner, state);
         }
         animate(owner);
     }
@@ -294,6 +365,8 @@ public final class WakeBrain {
             set(Mode.LURK);
             return;
         }
+        Reputation.Form form = Temper.form(state);
+        boolean furious = form == Reputation.Form.FURIOUS;
         if (seenTicks > 0) {
             // Caught moving: stop dead. The frame holds.
             body.getNavigation().stop();
@@ -302,22 +375,38 @@ public final class WakeBrain {
             if (seenTicks == 1) {
                 Temper.interest(state, 0.01F);
             }
-            if (seenTicks > 50) {
-                Reputation.Form form = Temper.form(state);
+            // Angry, it takes being looked at for a moment; furious, hardly at all.
+            int patience = furious ? 12 : form == Reputation.Form.ANGRY ? 30 : 50;
+            if (seenTicks > patience) {
                 if (Pursuit.wantsChase(owner, state, d) && form.atLeast(Reputation.Form.ANGRY)) {
                     beginChase(owner, false);
-                } else {
+                } else if (!furious) {
                     Temper.provoke(owner, state, Temper.Provocation.STARED);
                     startLeaving(owner);
                 }
+                // Furious and not yet afraid enough to run at you: it does not go. It waits for you
+                // to look away, and comes closer.
             }
             return;
         }
         if (unseenTicks < 3) {
             return;
         }
-        // Behind you, a little closer every time you do not turn round.
-        double want = Mth.clamp(16.0 - life / 160.0, 7.0, 16.0);
+        // It passes your torches, and they go out, one by one.
+        if (form.atLeast(Reputation.Form.UNEASY) && --pickCooldown <= 0 && body.form() == Reputation.Form.UNEASY) {
+            pickCooldown = 40;
+            if (beginPick(owner, false)) {
+                return;
+            }
+        }
+        // Furious, close, and you have not turned round: that is long enough.
+        if (furious && d < 9.0 && unseenTicks > 20 && Pursuit.wantsChase(owner, state, d) && body.getRandom().nextFloat() < 0.012F) {
+            beginChase(owner, false);
+            return;
+        }
+        // Behind you, a little closer every time you do not turn round. Furious, a lot closer.
+        double want = furious ? Mth.clamp(10.0 - life / 120.0, 3.5, 10.0)
+                : form == Reputation.Form.ANGRY ? Mth.clamp(13.0 - life / 140.0, 5.0, 13.0) : Mth.clamp(16.0 - life / 160.0, 7.0, 16.0);
         if (d > want + 1.5 && repathCooldown-- <= 0) {
             Vec3 point = Pursuit.stalkPoint(owner, want);
             if (point != null) {
@@ -413,6 +502,247 @@ public final class WakeBrain {
         }
     }
 
+    // ---- waiting for you ------------------------------------------------------------------
+
+    /**
+     * Round the corner, behind the door, on the ceiling: still and silent until you are close. Then
+     * the tell (everything goes quiet), then it comes. If you see it first, from far enough away,
+     * it stares back, and then either comes anyway or goes.
+     */
+    private void waitFor(ServerPlayer owner, HauntState state) {
+        body.getNavigation().stop();
+        body.setDeltaMovement(ambushKind == Ambush.Kind.CEILING ? Vec3.ZERO : new Vec3(0.0, body.getDeltaMovement().y, 0.0));
+        Reputation.Form form = lastNight() ? Reputation.Form.FURIOUS : Temper.form(state);
+        double d = body.distanceTo(owner);
+        if (strikeIn > 0) {
+            faceOwner(owner, 0.0F);
+            if (--strikeIn == 0) {
+                strike(owner, state, form);
+            }
+            return;
+        }
+        if (seenTicks > 0 && d > 5.0) {
+            // Found out. It looks back.
+            faceOwner(owner, 0.0F);
+            if (seenTicks > 30) {
+                if (form.atLeast(Reputation.Form.ANGRY) && Pursuit.wantsChase(owner, state, d)) {
+                    beginChase(owner, false);
+                } else {
+                    Temper.provoke(owner, state, Temper.Provocation.STARED);
+                    startLeaving(owner);
+                }
+            }
+            return;
+        }
+        boolean opened = ambushKind == Ambush.Kind.DOOR && ambushWatch != null && Obstacles.isOpenDoor(body.level(), ambushWatch);
+        boolean close = d <= Ambush.reachOf(form) && (seesOwner(owner) || ambushKind == Ambush.Kind.CEILING);
+        if (close || opened && d < 6.0) {
+            strikeIn = Ambush.tellTicks(form);
+            faceOwner(owner, 0.0F);
+            WakeNetwork.send(owner, WakeFxPayload.of(WakeFxPayload.HUSH, 1.0F, strikeIn + 8.0F));
+            WakeSounds.at(owner, WakeRegistry.WET_BREATH.get(), body.position().add(0.0, 1.6, 0.0), 0.9F, 0.7F);
+            return;
+        }
+        if (modeTicks > 20 * 45) {
+            startLeaving(owner);
+        }
+    }
+
+    /** Out of the wait: uneasy, it only touches you; angrier, it jumps on you. */
+    private void strike(ServerPlayer owner, HauntState state, Reputation.Form form) {
+        if (form == Reputation.Form.UNEASY && !lastNight()) {
+            if (!beginPick(owner, true)) {
+                beginTag(owner, state);
+            }
+            return;
+        }
+        if (ambushKind == Ambush.Kind.CEILING) {
+            body.setNoGravity(false);
+        }
+        Temper.chaseBegan(state, owner.level().getGameTime());
+        Pursuit.chaseStarted(owner, state, body);
+        budget = Math.max(budget, 20 * (20 + 8 * form.ordinal()));
+        pouncing = true;
+        beginLeap(owner, owner.position());
+    }
+
+    /**
+     * It is suddenly right behind you, and its hand is on your shoulder. That is all, tonight. But
+     * tonight, if you give it a reason, it will chase you as if it were angry.
+     */
+    private void beginTag(ServerPlayer owner, HauntState state) {
+        Vec3 dir = owner.getViewVector(1.0F).multiply(1.0, 0.0, 1.0);
+        dir = dir.lengthSqr() < 1.0E-4 ? new Vec3(0.0, 0.0, 1.0) : dir.normalize();
+        Vec3 behind = owner.position().subtract(dir.scale(1.3));
+        BlockPos spot = io.github.jitbyjones.thewake.haunt.Spots.groundNear((ServerLevel) body.level(), Mth.floor(behind.x), owner.getBlockY(),
+                Mth.floor(behind.z), 1);
+        if (spot != null) {
+            body.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+        }
+        faceOwner(owner, 0.0F);
+        set(Mode.TAG);
+        WakeSounds.at(owner, WakeRegistry.GRAB.get(), owner.getEyePosition(), 0.7F, 1.3F);
+        WakeNetwork.send(owner, new WakeFxPayload(WakeFxPayload.SHAKE, 0, 0, 0, 0.45F, 10.0F));
+        Vec3 face = body.position().add(0.0, 2.7, 0.0);
+        WakeNetwork.send(owner, new WakeFxPayload(WakeFxPayload.LOOK_AT, face.x, face.y, face.z, 1.0F, 14.0F));
+        long now = owner.level().getGameTime();
+        state.cooldown("tagged", now, 20L * 60 * 8);
+        state.tension = Math.max(state.tension, 0.9F);
+        state.lastScareTick = now;
+    }
+
+    private void tagged(ServerPlayer owner, HauntState state) {
+        body.getNavigation().stop();
+        faceOwner(owner, -6.0F);
+        body.setJaw(Math.min(30.0F, modeTicks * 2.0F));
+        if (modeTicks > 26) {
+            finish(owner, state, Pursuit.Outcome.GAVE_UP);
+        }
+    }
+
+    /**
+     * UNEASY's hook, and its only attack: the small hand takes your light. A torch out of your hand,
+     * or off your wall, or a lantern off its hook, and it is gone, and so is the light.
+     * {@code fromYou}: an ambush, so it is right there in front of you when it does it.
+     */
+    private boolean beginPick(ServerPlayer owner, boolean fromYou) {
+        pickHand = false;
+        pickAt = null;
+        if (fromYou && (isLight(owner.getMainHandItem()) || isLight(owner.getOffhandItem()))) {
+            pickHand = true;
+            Vec3 dir = owner.position().subtract(body.position()).multiply(1.0, 0.0, 1.0);
+            if (dir.lengthSqr() > 1.0E-4) {
+                Vec3 front = owner.position().subtract(dir.normalize().scale(0.9));
+                BlockPos spot = io.github.jitbyjones.thewake.haunt.Spots.groundNear((ServerLevel) body.level(), Mth.floor(front.x),
+                        owner.getBlockY(), Mth.floor(front.z), 1);
+                if (spot != null) {
+                    body.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+                }
+            }
+        } else {
+            pickAt = Obstacles.lightNear(body.level(), fromYou ? owner.blockPosition() : body.blockPosition(), fromYou ? 5 : 2);
+            if (pickAt == null) {
+                return false;
+            }
+        }
+        afterPick = fromYou ? Mode.LEAVE : Mode.STALK;
+        body.getNavigation().stop();
+        set(Mode.PICK);
+        return true;
+    }
+
+    private static boolean isLight(ItemStack stack) {
+        return stack.is(net.minecraft.world.item.Items.TORCH) || stack.is(net.minecraft.world.item.Items.SOUL_TORCH)
+                || stack.is(net.minecraft.world.item.Items.LANTERN) || stack.is(net.minecraft.world.item.Items.SOUL_LANTERN)
+                || stack.is(net.minecraft.world.item.Items.REDSTONE_TORCH);
+    }
+
+    private void picking(ServerPlayer owner, HauntState state) {
+        body.setDeltaMovement(new Vec3(0.0, body.getDeltaMovement().y, 0.0));
+        if (pickAt != null) {
+            body.setYRot(Spots.yawTowards(body.position(), Vec3.atCenterOf(pickAt)));
+            body.yBodyRot = body.getYRot();
+        } else {
+            faceOwner(owner, 0.0F);
+        }
+        if (modeTicks == 8) {
+            ServerLevel level = (ServerLevel) body.level();
+            if (pickHand) {
+                for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
+                    ItemStack held = owner.getItemInHand(hand);
+                    if (isLight(held)) {
+                        held.shrink(held.getCount());
+                        break;
+                    }
+                }
+                WakeSounds.at(owner, WakeRegistry.GRAB.get(), owner.getEyePosition(), 0.7F, 1.5F);
+                WakeNetwork.send(owner, new WakeFxPayload(WakeFxPayload.SHAKE, 0, 0, 0, 0.3F, 6.0F));
+            } else if (pickAt != null && Obstacles.isLight(level.getBlockState(pickAt))) {
+                level.removeBlock(pickAt, false);
+                level.playSound(null, pickAt, net.minecraft.sounds.SoundEvents.CANDLE_EXTINGUISH, SoundSource.BLOCKS, 0.6F, 0.6F);
+            }
+            state.tension = Math.min(1.0F, state.tension + 0.08F);
+        }
+        if (modeTicks >= 18) {
+            pickCooldown = 120 + body.getRandom().nextInt(160);
+            if (afterPick == Mode.STALK) {
+                set(Mode.STALK);
+            } else {
+                finish(owner, state, Pursuit.Outcome.GAVE_UP);
+            }
+        }
+    }
+
+    /**
+     * ANGRY: you are somewhere its body cannot get to (up a pillar, behind a wall, in a room with a
+     * window), and its neck can. It unfolds, one vertebra at a time, and at the end of it the jaw
+     * drops, while its body stays out there in the dark.
+     */
+    private boolean beginReach(ServerPlayer owner) {
+        if (reachCooldown > 0 || body.form() != Reputation.Form.ANGRY) {
+            return false;
+        }
+        double dy = owner.getY() - body.getY();
+        double flat = Math.hypot(owner.getX() - body.getX(), owner.getZ() - body.getZ());
+        CreaturePose clip = null;
+        if (dy >= 1.8 && dy <= 4.2 && flat <= 2.6) {
+            clip = CreaturePose.REACH_UP;
+        } else if (flat <= 3.2 && Math.abs(dy) < 1.0) {
+            clip = seesOwner(owner) ? CreaturePose.REACH_WINDOW : CreaturePose.REACH_WALL;
+        }
+        if (clip == null) {
+            return false;
+        }
+        reachClip = clip;
+        reachCooldown = 20 * 8;
+        body.getNavigation().stop();
+        set(Mode.REACH);
+        WakeSounds.at(owner, WakeRegistry.CRACK.get(), body.position().add(0.0, 2.6, 0.0), 1.0F, 0.6F);
+        return true;
+    }
+
+    /** Where the end of its neck gets to, from its feet: forward and up, by clip. */
+    private Vec3 reachTip() {
+        double fwd = reachClip == CreaturePose.REACH_UP ? 0.5 : reachClip == CreaturePose.REACH_WINDOW ? 2.2 : 1.0;
+        double up = reachClip == CreaturePose.REACH_UP ? 4.4 : reachClip == CreaturePose.REACH_WINDOW ? 2.6 : 2.8;
+        return body.position().add(Vec3.directionFromRotation(0.0F, body.getYRot()).scale(fwd)).add(0.0, up, 0.0);
+    }
+
+    private void reaching(ServerPlayer owner, HauntState state) {
+        body.setDeltaMovement(new Vec3(0.0, body.getDeltaMovement().y, 0.0));
+        if (modeTicks < 20) {
+            faceOwner(owner, 0.0F);
+        }
+        // It unfolds in clicks: one vertebra a frame.
+        if (modeTicks % 3 == 0 && modeTicks <= 20) {
+            WakeSounds.at(owner, WakeRegistry.CRACK.get(), reachTip(), 0.5F, 1.4F + body.getRandom().nextFloat() * 0.3F);
+        }
+        if (modeTicks == 22) {
+            body.setJaw(60.0F);
+            if (reachTip().distanceTo(owner.getEyePosition()) < 1.9) {
+                Vec3 face = reachTip();
+                WakeNetwork.send(owner, new AttackPayload(face.x, face.y, face.z));
+                hurtOwner(owner, state);
+            }
+        }
+        if (modeTicks > 50) {
+            body.setJaw(0.0F);
+            stuckTicks = 0;
+            set(Mode.CHASE);
+        }
+    }
+
+    /** The tell before it jumps: it drops low and goes still, and so does everything else. */
+    private void pounce(ServerPlayer owner, HauntState state) {
+        body.getNavigation().stop();
+        body.setDeltaMovement(new Vec3(0.0, body.getDeltaMovement().y, 0.0));
+        faceOwner(owner, 0.0F);
+        if (--strikeIn <= 0) {
+            pouncing = true;
+            beginLeap(owner, owner.position());
+        }
+    }
+
     // ---- the chase ------------------------------------------------------------------------
 
     private void beginChase(ServerPlayer owner, boolean fresh) {
@@ -463,6 +793,16 @@ public final class WakeBrain {
             beginGrab(owner, state);
             return;
         }
+        // Angry, close, and something between you (a wall, or you are up on something): its neck.
+        if (reachCooldown > 0) {
+            reachCooldown--;
+        } else if (body.form() == Reputation.Form.ANGRY && !lastNight()) {
+            double flat = Math.hypot(owner.getX() - body.getX(), owner.getZ() - body.getZ());
+            double dy = owner.getY() - body.getY();
+            if ((flat < 3.2 && !seesOwner(owner) || flat < 2.6 && dy >= 1.8) && beginReach(owner)) {
+                return;
+            }
+        }
         // Into the water after you.
         if (!body.isInWater() && (owner.isInWater() || owner.getVehicle() instanceof Boat) && d > 3.0) {
             double range = Temper.knows(state, Reputation.Tactic.WATER, 1) ? 22.0 : 15.0;
@@ -511,6 +851,38 @@ public final class WakeBrain {
                 return;
             }
         }
+        // Angry or worse, at the right distance, it does not run the last of the way: it jumps.
+        Reputation.Form temper = lastNight() ? Reputation.Form.FURIOUS : Temper.form(state);
+        if (pounceCooldown > 0) {
+            pounceCooldown--;
+        } else if (temper.atLeast(Reputation.Form.ANGRY) && d > 4.5 && d < 8.5 && body.onGround() && !body.onClimbable()
+                && Math.abs(owner.getY() - body.getY()) < 1.5 && seesOwner(owner) && body.getRandom().nextFloat() < 0.06F) {
+            pounceCooldown = 20 * (temper == Reputation.Form.FURIOUS ? 6 : 9) + body.getRandom().nextInt(80);
+            strikeIn = Ambush.tellTicks(temper);
+            set(Mode.POUNCE);
+            WakeNetwork.send(owner, WakeFxPayload.of(WakeFxPayload.HUSH, 1.0F, strikeIn + 6.0F));
+            return;
+        }
+        // Furious: it moves the way a chewed tape plays. It holds, and then it is somewhere else,
+        // further along, all at once, and for a moment there are three of it.
+        if (temper == Reputation.Form.FURIOUS && --chewClock <= 0) {
+            chewClock = 14 + body.getRandom().nextInt(16);
+            if (d > 5.0 && d < 30.0 && seesOwner(owner)) {
+                Vec3 to = owner.position().subtract(body.position()).multiply(1.0, 0.0, 1.0);
+                double hop = Math.min(d - 3.0, 2.5 + body.getRandom().nextDouble() * 1.5);
+                Vec3 target = body.position().add(to.normalize().scale(hop));
+                BlockPos spot = io.github.jitbyjones.thewake.haunt.Spots.groundNear((ServerLevel) body.level(), Mth.floor(target.x),
+                        body.getBlockY(), Mth.floor(target.z), 2);
+                if (spot != null) {
+                    Vec3 from = body.position();
+                    body.getNavigation().stop();
+                    body.teleportTo(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+                    WakeNetwork.send(owner, new WakeFxPayload(WakeFxPayload.SKIP, from.x, from.y, from.z, 1.0F, body.getYRot()));
+                    WakeSounds.at(owner, WakeRegistry.WARBLE.get(), body.position().add(0.0, 1.6, 0.0), 0.9F, 0.7F + body.getRandom().nextFloat() * 0.3F);
+                    return;
+                }
+            }
+        }
         double speed = chaseSpeed(owner, state, d);
         if (--repathCooldown <= 0 || body.getNavigation().isDone()) {
             body.getNavigation().moveTo(owner, speed);
@@ -527,6 +899,10 @@ public final class WakeBrain {
                 stuckTicks = Math.max(0, stuckTicks - 10);
             }
             lastDistance = d;
+        }
+        if (stuckTicks >= 20 && beginReach(owner)) {
+            stuckTicks = 0;
+            return;
         }
         if (stuckTicks >= 30) {
             stuckTicks = 0;
@@ -861,6 +1237,8 @@ public final class WakeBrain {
     private void hurtOwner(ServerPlayer owner, HauntState state) {
         ServerLevel level = owner.serverLevel();
         float amount = lastNight() ? WakeConfig.get().chaseDamage * 1.3F : WakeConfig.get().chaseDamage;
+        // The more often it has had you lately, the harder it bites.
+        amount *= 1.0F + 0.2F * Math.min(2, Temper.recentCatches(state, level.getGameTime()));
         if (level.getLevelData().isHardcore() && !WakeConfig.get().attackHardcoreKills) {
             amount = Math.min(amount, owner.getHealth() - 1.0F);
         }
@@ -924,8 +1302,9 @@ public final class WakeBrain {
         Vec3 dir = target.subtract(leapFrom).multiply(1.0, 0.0, 1.0);
         leapTo = target.add(dir.lengthSqr() > 1.0E-4 ? dir.normalize().scale(0.6) : Vec3.ZERO);
         double dist = leapFrom.distanceTo(leapTo);
-        leapTotal = Mth.clamp((int) Math.round(dist * 1.35), 10, 30);
-        leapApex = 2.0 + dist * 0.16;
+        leapTotal = Mth.clamp((int) Math.round(dist * 1.35), lowLeap ? 6 : 10, 30);
+        leapApex = lowLeap ? 0.1 : 2.0 + dist * 0.16;
+        lowLeap = false;
         body.getNavigation().stop();
         body.setYRot(Spots.yawTowards(leapFrom, leapTo));
         body.yBodyRot = body.getYRot();
@@ -940,8 +1319,24 @@ public final class WakeBrain {
         Vec3 delta = next.subtract(body.position());
         body.move(MoverType.SELF, delta);
         body.setDeltaMovement(Vec3.ZERO);
+        if (pouncing && t > 0.6 && body.distanceTo(owner) < GRAB_RANGE && grabbable(owner)) {
+            pouncing = false;
+            body.setFlag(WakeEntity.FLAG_SMOOTH, false);
+            beginGrab(owner, state);
+            return;
+        }
         if (t >= 1.0 || modeTicks > 3 && (body.horizontalCollision || body.onGround() && t > 0.5) || body.isInWater() && t > 0.4) {
             body.setFlag(WakeEntity.FLAG_SMOOTH, false);
+            if (pouncing && !body.isInWater()) {
+                pouncing = false;
+                if (body.distanceTo(owner) < GRAB_RANGE + 0.6 && grabbable(owner)) {
+                    beginGrab(owner, state);
+                } else {
+                    // You stepped aside. It comes down wrong, and for a moment it cannot get up.
+                    stun(owner, 30, Mode.CHASE);
+                }
+                return;
+            }
             if (body.isInWater()) {
                 ServerLevel level = (ServerLevel) body.level();
                 level.playSound(null, body.blockPosition(), WakeRegistry.SPLASH.get(), SoundSource.HOSTILE, 2.0F * WakeConfig.get().soundVolume, 0.8F);
@@ -1211,6 +1606,10 @@ public final class WakeBrain {
                 frame = (modeTicks / 2) % clip.frames;
             }
             case SLEEP -> clip = CreaturePose.LIE;
+            case AMBUSH -> clip = ambushKind == Ambush.Kind.DOOR || ambushKind == Ambush.Kind.MARK ? CreaturePose.STAND
+                    : ambushKind == Ambush.Kind.CEILING ? CreaturePose.LEDGE : CreaturePose.CROUCH;
+            case POUNCE -> clip = CreaturePose.LEAP;
+            case TAG -> clip = CreaturePose.REACH;
             case LEAVE -> clip = body.clip();
             case LURK -> {
                 if (atLedge) {
@@ -1223,7 +1622,23 @@ public final class WakeBrain {
                     frame = body.strideFrame(clip);
                 }
             }
-            case SIEGE -> clip = siegePhase == 3 ? CreaturePose.REACH : moving ? CreaturePose.WALK : CreaturePose.STAND;
+            case SIEGE -> {
+                if (siegePhase == 1 && !moving && body.form() == Reputation.Form.UNEASY) {
+                    // The small hand on your wall: three, a pause, one.
+                    clip = CreaturePose.KNOCK;
+                    frame = (modeTicks / 2) % clip.frames;
+                } else {
+                    clip = siegePhase == 3 ? CreaturePose.REACH : moving ? CreaturePose.WALK : CreaturePose.STAND;
+                }
+            }
+            case PICK -> {
+                clip = CreaturePose.PICK;
+                frame = Math.min(clip.frames - 1, modeTicks / 2);
+            }
+            case REACH -> {
+                clip = reachClip;
+                frame = Math.min(clip.frames - 1, modeTicks * clip.frames / 20);
+            }
             default -> {
                 if (body.onClimbable() && body.horizontalCollision) {
                     clip = CreaturePose.CLIMB;

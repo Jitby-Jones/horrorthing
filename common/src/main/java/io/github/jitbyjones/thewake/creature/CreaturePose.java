@@ -48,7 +48,18 @@ public enum CreaturePose {
     /** Hanging off a ledge by its fingers, the face just over the edge. */
     LEDGE(1, 0.42F),
     /** Under water, coming at you, long and flat. */
-    SWIM(8, 1.25F);
+    SWIM(8, 1.25F),
+    // Each temper's own clips (only its model has them; the others play STAND instead).
+    /** UNEASY: three knocks with the small hand, a pause, one more. The long arms do not move. */
+    KNOCK(16, 2.83F),
+    /** UNEASY: the small hand out to take your light, and back. */
+    PICK(8, 2.75F),
+    /** ANGRY: the neck unfolds up over a wall about three blocks high and comes down your side. */
+    REACH_WALL(8, 3.55F),
+    /** ANGRY: the neck straight up, and the face down over whatever you are standing on. */
+    REACH_UP(8, 4.95F),
+    /** ANGRY: crouched outside, the neck level in through a window, the face well into the room. */
+    REACH_WINDOW(8, 2.70F);
 
     private static final CreaturePose[] VALUES = values();
 

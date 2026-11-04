@@ -36,14 +36,18 @@ Headphones help.
   opening, a picture tear and a short distorted scream. This only happens if you stay in a menu with
   it at arm's length, never in your sleep or through the pause screen, and not again for a few
   minutes after.
-- **Chases.** When it is angry, it may chase you, with **very loud screams** and a heartbeat under
-  them. If it catches you, it holds you up to its face. Screams have their own volume setting
-  (`screamVolume`), chases can be turned off (`chases`), and the tape tear can be turned off with
-  everything else visual (`tapeEffect`).
+- **Chases and ambushes.** When it is angry, it chases you, with **very loud screams** and a
+  heartbeat under them, and it waits round corners and behind doors and drops off ceilings. If it
+  catches you, it holds you up to its face. The angrier it is, the more often: furious, it hardly
+  stops, and **it does not let up after you die**. Screams have their own volume setting
+  (`screamVolume`), chases and ambushes can be turned off (`chases`, `ambushes`), and the tape tear
+  can be turned off with everything else visual (`tapeEffect`).
 - A tall, flat-black stick figure like a stop-motion puppet, with pale long-fingered hands sewn on
   at the wrists. Its head is an old index card cut to the shape of a face that is too long, a real
   face pressed into it from behind, wet eyes looking through holes torn in it, its chin a
-  ventriloquist's dummy's held on with stitches. Some blood, bloodshot eyes, teeth. No gore.
+  ventriloquist's dummy's held on with stitches. As it gets angrier its body changes: a second
+  pair of small arms; a neck of nine vertebrae; bare rusted armature, trailing videotape, the card
+  shredded over the face underneath. Some blood, bloodshot eyes, teeth. No gore.
 - The picture is made to look like worn videotape at times: grain, scanlines, rolling tracking
   noise. No strobing.
 - It can damage you (default six hearts, through armour). In hardcore it leaves you at half a
@@ -56,7 +60,9 @@ Headphones help.
   - ripened crops;
   - closed doors;
   - furnace output moved into your chest;
-  - a few times in a whole haunting, a new name on the thing in your hand.
+  - a few times in a whole haunting, a new name on the thing in your hand;
+  - its marks (tape on your floor), strings from low ceilings, and its tape across doorways;
+  - torches taken off your walls, and out of your hand.
 - In a world first started in survival, switching to creative or spectator does not save you: it
   opens your chat box and types `/gamemode survival` into it, one key at a time (`possession`).
 - Everything "meta" stays inside the game: no files outside the game folder, no fake crashes, no
@@ -152,6 +158,13 @@ watchtower, the flash, the chat box, its places):
 ./gradlew :fabric:runClient -PwakeDemo2
 ```
 
+A third stages its tempers as models and what each one does (the small hand taking your torch, the
+neck over a wall and up a pillar, the chewed-tape run, its marks, a string, its tape in a doorway):
+
+```bash
+./gradlew :fabric:runClient -PwakeDemo3
+```
+
 The creature was designed as pixel art first (`tools/concepts/`, sheets in
 [`docs/concepts/`](docs/concepts/)) and is built procedurally in headless Blender, with no GUI and
 no MCP server: Blender as a Python module. Its head is drawn by `tools/creature/card.py` from the
@@ -168,8 +181,10 @@ python tools/creature/build_creature.py --previews
 
 That writes the model (`models/creature/creature.bin.gz`: a skeleton, skin weights, rigid parts and
 baked clips, format in `tools/creature/export_v3.py`), its two textures and Cycles preview renders.
-The game skins it on the CPU with dual quaternions, the same as Blender, checked on every build. Its
-four faces (one for each temper) are painted from the same card by `card.dress`. The mod's own
+The game skins it on the CPU with dual quaternions, the same as Blender, checked on every build. Each
+temper is its own model, built from `tools/creature/form_models.py` by
+`python tools/creature/build_form.py uneasy|angry|furious`, with its card redressed by `card.dress`.
+The concept art they were chosen from is drawn by `tools/concepts/draw_forms.py`. The mod's own
 sounds and small textures are synthesized by `tools/generate_assets.py` (numpy, Pillow, ffmpeg with
 libvorbis); the block and item textures by `tools/textures/draw_textures.py`. The chase and torment
 sounds are recordings from sound libraries (CC0, CC-BY and public domain): see
@@ -199,9 +214,18 @@ Captured in game by the scripted demo:
 
 Its temper, its body and its places (the expansion's demo, `-PwakeDemo2`):
 
-![Four versions of its card face side by side: clean; with a red crayon smile drawn too wide; scribbled over and bleeding from the eyes; torn, with another card stapled over a corner](docs/media/faces-ingame.jpg)
+![Its four tempers at night, side by side: the card face; the card pinned on crooked with a pair of small pale hands clasped at its chest; the card carried higher; and the card shredded into strips fanned over a real face, on a bare armature](docs/media/forms-ingame.jpg)
 
-*Watcher, uneasy, angry, furious.*
+*Watcher, uneasy, angry, furious: four bodies, each its own model (the demo, `-PwakeDemo3`).*
+
+| | |
+|---|---|
+| ![Night: right in front of you, crouched, its small pale hand reaching up; your torch is gone from your hand](docs/media/uneasy-pick.jpg) | ![A cobblestone wall; over the top of it, on a long neck, its face comes down your side with the jaw dropped](docs/media/angry-wall.jpg) |
+| *Uneasy: the small hand takes your torch.* | *Angry: over your wall.* |
+| ![Looking down from a pillar: its face has come up to you on a neck from the ground, the jaw dropped](docs/media/angry-pillar.jpg) | ![Held up to it: a real, gaunt human face, bloodshot eyes, a dark open mouth, close](docs/media/furious-held.jpg) |
+| *Angry: up your pillar.* | *Furious: the face it wore the card over.* |
+| ![A doorway in a wooden wall at night; in it, a dark spidery figure trailing strands of tape](docs/media/furious-coming.jpg) | ![A dark wooden room: an X of grey tape on the floor, twine hanging from the ceiling, tape strung across a doorway](docs/media/traces.jpg) |
+| *Furious, coming through your door.* | *Its mark, a string, and its tape across the door.* |
 
 | | |
 |---|---|
@@ -248,13 +272,22 @@ Counterplay, and what it costs:
   frame. It also makes it angry.
 - **Sleep somewhere new.** A new bed slows it down and starts a new film.
 - **Light.** It only ever comes out of the dark, and a torch at its feet makes it not be there.
-  Furious, it puts your lights out.
+  Uneasy, it takes your torches. Furious, it puts your lights out.
 - **Walk into it** and it goes away, for an hour of your time. Then two, then three.
 
 **Its temper.** Hurting it, staying up, hiding from it in ways it has to tear down, and cheating
-(creative, commands) make it angry. Sleeping and getting caught calm it. It wears its temper on the
-card: creased, with a red crayon smile drawn on it too wide; bleeding from the eyes, the smile
-scribbled out; torn, with somebody else's card stapled over a corner.
+(creative, commands) make it angry. Sleeping and getting caught calm it. Its body changes with its
+temper, and so does the way it moves: the angrier, the smoother.
+
+- **Uneasy.** A second, small pair of arms has come out under its ribs: a child's hands that wring
+  and never keep still. They knock (three, a pause, one) and they take your light. The card has
+  been pinned back on crooked.
+- **Angry.** Its neck is nine vertebrae, carried folded. It does not need to get to you: it reaches
+  over your wall, up your pillar, in at your window, one vertebra at a time, and bites from the
+  end of it while its body stays outside.
+- **Furious.** The black has come off. Under it is the armature, rusted rod and wing nuts, with
+  tape spooling out of it, and a shredded card over the face that was behind it. It comes at you
+  the way a chewed tape plays: still, then further along, three of it for a moment, then one.
 
 **Its body.** Most of the time it only wants you to know it is there: knocking on the outside of
 your walls, breathing on the other side of the one you are facing, footsteps that stop a moment
@@ -268,6 +301,9 @@ When it is angry, you are afraid, and it is dark, it comes for you.
   and throws them.
 - It comes across the water at you, and under it.
 - It climbs the back of the tower you built to watch for it.
+- It waits for you round the next corner, behind the next door, on its mark, on the ceiling at the
+  top of a string. When it all goes quiet, it is about to move.
+- When something knocks and you go to see what it was, sometimes it is still there.
 - It learns how you got away last time.
 - If it has hold of you, struggle.
 

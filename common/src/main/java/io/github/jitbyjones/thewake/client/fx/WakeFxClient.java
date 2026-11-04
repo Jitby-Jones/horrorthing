@@ -41,6 +41,11 @@ public final class WakeFxClient {
     private static long shutterStart = -100;
     private static boolean held;
     private static long removedStart = -1000;
+    private static long hushEnd;
+    private static long playStart = -1000;
+    private static int playTicks;
+    private static long skipTick = -1000;
+    private static Vec3 skipFrom = Vec3.ZERO;
     private static Loop drone;
     private static Loop heart;
 
@@ -87,6 +92,25 @@ public final class WakeFxClient {
                 lostSeconds = (int) fx.amount();
             }
             case WakeFxPayload.SHUTTER -> shutterStart = t;
+            case WakeFxPayload.HUSH -> {
+                // Everything stops: the drone, your heart. It is about to move.
+                hushEnd = t + (long) fx.extra();
+                if (drone != null) {
+                    drone.cut();
+                }
+                if (heart != null) {
+                    heart.cut();
+                }
+            }
+            case WakeFxPayload.SKIP -> {
+                skipTick = t;
+                skipFrom = new Vec3(fx.x(), fx.y(), fx.z());
+                TapeEffect.tear(0.35F);
+            }
+            case WakeFxPayload.PLAY -> {
+                playStart = t;
+                playTicks = (int) fx.extra();
+            }
             case WakeFxPayload.PARALYSIS, WakeFxPayload.FAKE_DAWN -> {
             }
             default -> {
@@ -108,6 +132,18 @@ public final class WakeFxClient {
         TapeEffect.tear(0.5F);
     }
 
+    /**
+     * The copies left behind by FURIOUS's last skip, for the few ticks after it: where it was and
+     * halfway to where it is, on alternate ticks.
+     */
+    public static java.util.List<Vec3> ghosts(Vec3 now) {
+        long age = Overlays.ticks() - skipTick;
+        if (age > 9 || age % 2 == 1) {
+            return java.util.List.of();
+        }
+        return java.util.List.of(skipFrom, skipFrom.lerp(now, 0.5));
+    }
+
     public static void shake(float amount, int ticks) {
         shakeAmount = Math.max(shakeAmount * (Overlays.ticks() < shakeEnd ? 1.0F : 0.0F), amount);
         shakeEnd = Math.max(shakeEnd, Overlays.ticks() + ticks);
@@ -126,7 +162,8 @@ public final class WakeFxClient {
             // "Press shift to dismount" is not something it would tell you.
             mc.gui.setOverlayMessage(net.minecraft.network.chat.Component.empty(), false);
         }
-        boolean chase = ClientState.chasing;
+        boolean hush = Overlays.ticks() < hushEnd;
+        boolean chase = ClientState.chasing && !hush;
         float volume = WakeConfig.get().soundVolume;
         if (chase && (drone == null || drone.isStopped()) && volume > 0.0F) {
             drone = new Loop(WakeRegistry.CHASE_DRONE.get(), 0.7F * volume, 1.0F);
@@ -135,7 +172,7 @@ public final class WakeFxClient {
         if (drone != null) {
             drone.want = chase ? 0.75F * volume : 0.0F;
         }
-        boolean afraid = chase || ClientState.tension > 0.82F;
+        boolean afraid = !hush && (chase || ClientState.tension > 0.82F);
         if (afraid && (heart == null || heart.isStopped()) && volume > 0.0F) {
             heart = new Loop(WakeRegistry.HEARTBEAT.get(), 0.0F, 1.0F);
             mc.getSoundManager().play(heart);
@@ -230,6 +267,19 @@ public final class WakeFxClient {
                 }
             }
         }
+        // You died, and the tape is still playing.
+        float play = now - playStart;
+        if (play < playTicks && (play > 20.0F || ((int) play / 4) % 2 == 0)) {
+            Font font = mc.font;
+            int alpha = Math.round(Mth.clamp((playTicks - play) / 15.0F, 0.0F, 1.0F) * 255.0F);
+            if (alpha > 8) {
+                graphics.pose().pushPose();
+                graphics.pose().translate(18, 16, 0);
+                graphics.pose().scale(2.0F, 2.0F, 1.0F);
+                graphics.drawString(font, "PLAY \u25B6", 0, 0, (alpha << 24) | 0xE8E8E8, true);
+                graphics.pose().popPose();
+            }
+        }
         // It has gone: a moment of white, as when a tape runs out.
         float gone = now - removedStart;
         if (gone < 60.0F) {
@@ -267,6 +317,11 @@ public final class WakeFxClient {
             this.pitchWant = pitch;
             this.relative = true;
             this.attenuation = SoundInstance.Attenuation.NONE;
+        }
+
+        /** Silence, now, not a fade. */
+        void cut() {
+            volume = 0.0F;
         }
 
         @Override

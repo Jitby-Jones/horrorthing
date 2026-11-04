@@ -56,6 +56,9 @@ public final class WakeContent {
     // ---- blocks ---------------------------------------------------------------------------
     public static Supplier<Block> VCR;
     public static Supplier<Block> FLUORESCENT_LIGHT;
+    public static Supplier<Block> SPIKE_MARK;
+    public static Supplier<Block> HANGING_STRING;
+    public static Supplier<Block> SHED_TAPE;
     public static Supplier<Block> WALLPAPER;
     public static Supplier<Block> STAINED_WALLPAPER;
     public static Supplier<Block> CEILING_TILE;
@@ -110,6 +113,15 @@ public final class WakeContent {
         EXIT_DOOR = block("exit_door", () -> new PassageDoorBlock(BlockSetType.IRON, PassageDoorBlock.Leads.HOME,
                 BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(-1.0F, 3600000.0F).noOcclusion().noLootTable()
                         .pushReaction(PushReaction.BLOCK)), false);
+        SPIKE_MARK = block("spike_mark", () -> new io.github.jitbyjones.thewake.block.SpikeMarkBlock(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.COLOR_GRAY).noCollission().instabreak().sound(SoundType.WOOL).noLootTable().replaceable()
+                .pushReaction(PushReaction.DESTROY)), false);
+        HANGING_STRING = block("hanging_string", () -> new io.github.jitbyjones.thewake.block.HangingStringBlock(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.WOOL).noCollission().instabreak().sound(SoundType.WOOL).noLootTable().noOcclusion()
+                .pushReaction(PushReaction.DESTROY)), false);
+        SHED_TAPE = block("shed_tape", () -> new io.github.jitbyjones.thewake.block.ShedTapeBlock(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.COLOR_BROWN).noCollission().instabreak().sound(SoundType.WOOL).noLootTable().noOcclusion()
+                .pushReaction(PushReaction.DESTROY)), false);
         PLYWOOD = block("plywood", () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.SAND).strength(1.0F)
                 .instrument(NoteBlockInstrument.BASS).sound(SoundType.WOOD).ignitedByLava()), true);
 

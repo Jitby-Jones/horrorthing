@@ -102,9 +102,18 @@ public final class WorldRender {
                 any = true;
             }
             Vec3 actual = body.getPosition(partial);
-            boolean smooth = body.hasFlag(io.github.jitbyjones.thewake.entity.WakeEntity.FLAG_SMOOTH);
+            // Its temper is in its frame rate. Watching, it moves on fours, a new position every
+            // fourth tick; uneasy on threes; angry on twos; furious on ones, every frame, smooth in a
+            // way nothing animated by hand should be.
+            int hold = switch (body.form()) {
+                case WATCHER -> 4;
+                case UNEASY -> 3;
+                case ANGRY -> 2;
+                case FURIOUS -> 1;
+            };
+            boolean smooth = body.hasFlag(io.github.jitbyjones.thewake.entity.WakeEntity.FLAG_SMOOTH) || hold == 1;
             boolean cut = body.shownPos == null || body.clip().ordinal() != body.shownClip || body.frame() != body.shownFrame || smooth
-                    || actual.distanceToSqr(body.shownPos) > 9.0 || body.clientAge % 4 == 0 && actual.distanceToSqr(body.shownPos) > 0.04;
+                    || actual.distanceToSqr(body.shownPos) > 9.0 || body.clientAge % hold == 0 && actual.distanceToSqr(body.shownPos) > 0.04;
             if (cut) {
                 body.shownPos = actual;
                 body.shownYaw = net.minecraft.util.Mth.rotLerp(partial, body.yRotO, body.getYRot());
@@ -126,6 +135,12 @@ public final class WorldRender {
             CreatureRenderer.face(body.form().ordinal());
             CreatureRenderer.draw(body.clip(), body.frame(), view, projection, at.subtract(cam), body.shownYaw, 1.0F,
                     CreatureRenderer.Head.of(body, partial), CreatureRenderer.lightAt(mc.level, at, height), buffers, 0);
+            // Just after it skips: where it was, and halfway, for a moment, flickering, like
+            // frames left on a chewed tape.
+            for (Vec3 ghost : io.github.jitbyjones.thewake.client.fx.WakeFxClient.ghosts(at)) {
+                CreatureRenderer.draw(body.clip(), body.frame(), view, projection, ghost.subtract(cam), body.shownYaw, 1.0F,
+                        CreatureRenderer.Head.of(body, partial), CreatureRenderer.lightAt(mc.level, ghost, height), null, 0);
+            }
         }
         wear += (nearest - wear) * 0.1F;
         CreatureRenderer.face(io.github.jitbyjones.thewake.client.ClientState.form);

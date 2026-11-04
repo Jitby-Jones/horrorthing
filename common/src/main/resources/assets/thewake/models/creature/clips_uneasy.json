@@ -1,0 +1,163 @@
+{
+ "version": 3,
+ "form": "uneasy",
+ "joints": 219,
+ "clips": {
+  "stand": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.901
+  },
+  "stoop": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.604
+  },
+  "crouch": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 1.798
+  },
+  "peek_right": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.901
+  },
+  "peek_left": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.743
+  },
+  "reach": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.734
+  },
+  "bedside": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 2.133
+  },
+  "lie": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 0.427
+  },
+  "walk": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 2.741
+  },
+  "stoop_walk": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 2.485
+  },
+  "crawl": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 1.616
+  },
+  "lunge": {
+   "frames": 10,
+   "fps": 12.0,
+   "loop": false,
+   "height": 2.901
+  },
+  "rise": {
+   "frames": 12,
+   "fps": 8.0,
+   "loop": false,
+   "height": 2.911
+  },
+  "lean_right": {
+   "frames": 6,
+   "fps": 6.0,
+   "loop": false,
+   "height": 2.944
+  },
+  "lean_left": {
+   "frames": 6,
+   "fps": 6.0,
+   "loop": false,
+   "height": 2.908
+  },
+  "run": {
+   "frames": 8,
+   "fps": 10.0,
+   "loop": true,
+   "height": 2.975
+  },
+  "climb": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 3.987
+  },
+  "leap": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 2.976
+  },
+  "hold": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 3.203
+  },
+  "throw": {
+   "frames": 6,
+   "fps": 12.0,
+   "loop": false,
+   "height": 3.307
+  },
+  "scream": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 3.229
+  },
+  "stunned": {
+   "frames": 6,
+   "fps": 10.0,
+   "loop": false,
+   "height": 3.253
+  },
+  "ledge": {
+   "frames": 1,
+   "fps": 1.0,
+   "loop": false,
+   "height": 0.442
+  },
+  "swim": {
+   "frames": 8,
+   "fps": 8.0,
+   "loop": true,
+   "height": 1.165
+  },
+  "knock": {
+   "frames": 16,
+   "fps": 10.0,
+   "loop": false,
+   "height": 2.833
+  },
+  "pick": {
+   "frames": 8,
+   "fps": 10.0,
+   "loop": false,
+   "height": 2.747
+  }
+ }
+}

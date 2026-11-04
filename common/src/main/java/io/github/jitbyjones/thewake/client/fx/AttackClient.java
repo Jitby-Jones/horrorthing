@@ -129,6 +129,8 @@ public final class AttackClient {
         if (age < FACE_FROM || age >= BLACK_AT || !WorldRender.captured || mc.level == null) {
             return;
         }
+        // Whichever temper it is in now: its own model.
+        CreatureRenderer.face(io.github.jitbyjones.thewake.client.ClientState.form);
         CreatureModel model = CreatureRenderer.model();
         if (model == null) {
             return;

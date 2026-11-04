@@ -335,6 +335,58 @@ def card():
     return img
 
 
+def spike_mark():
+    """Its mark on your floor: two strips of grey cloth tape in an X, the ends torn, the way a
+    stage hand marks where an actor has to stand. A number on it in marker."""
+    img = canvas()
+    for diag in (1, -1):
+        for i in range(-1, 17):
+            for w in (-1, 0, 1):
+                x = i + w
+                y = i if diag == 1 else 15 - i
+                if 1 <= i <= 14 and 0 <= x < 16 and 0 <= y < 16:
+                    v = 112 + RNG.normal(0, 7) - 14 * (w != 0)
+                    img[y, x] = (v, v * 0.98, v * 0.94, 255)
+        # torn ends: a ragged pixel or two missing
+    for (x, y) in ((1, 1), (14, 1), (1, 14), (14, 14), (2, 0), (0, 2)):
+        if RNG.random() < 0.7:
+            img[y, x] = (0, 0, 0, 0)
+    # the weave, and a sheen down the middle of each strip
+    for i in range(2, 14):
+        px(img, i, i, (138, 135, 128, 255))
+        px(img, i, 15 - i, (138, 135, 128, 255))
+    # marker: a scene number, in black, on the crossing
+    for (x, y) in ((7, 6), (8, 6), (8, 7), (7, 8), (8, 9)):
+        px(img, x, y, (24, 22, 22, 255))
+    return img
+
+
+def hanging_string():
+    """Twine, pulled tight from the ceiling: one pixel wide, twisted, a knot at the end."""
+    img = canvas()
+    for y in range(16):
+        c = (150, 132, 104, 255) if (y // 2) % 2 == 0 else (118, 102, 80, 255)
+        px(img, 7, y, c)
+        if y % 4 == 1:
+            px(img, 8, y, (96, 84, 66, 255))
+    for (x, y) in ((6, 14), (7, 14), (8, 14), (7, 15), (6, 15)):
+        px(img, x, y, (104, 90, 70, 255))
+    return img
+
+
+def shed_tape():
+    """A length of videotape, slack across a doorway: brown-black, a hard sheen, a kink in it."""
+    img = canvas()
+    for x in range(16):
+        sag = int(round(1.4 * np.sin(np.pi * x / 15.0)))
+        for k, y in enumerate(range(6 + sag, 9 + sag)):
+            sheen = 70 if k == 1 and (x // 3) % 2 == 0 else 0
+            img[y, x] = (34 + sheen, 26 + sheen * 0.8, 20 + sheen * 0.6, 255)
+    for (x, y) in ((5, 9), (6, 10), (11, 6)):
+        px(img, x, y, (52, 40, 30, 255))
+    return img
+
+
 def main():
     save(wallpaper(False), "block", "wallpaper")
     save(wallpaper(True), "block", "stained_wallpaper")
@@ -356,6 +408,10 @@ def main():
     save(pin(), "item", "pin")
     save(tape(), "item", "tape")
     save(card(), "item", "card")
+    # Drawn last, so the shared random stream leaves every texture above as it was.
+    save(spike_mark(), "block", "spike_mark")
+    save(hanging_string(), "block", "hanging_string")
+    save(shed_tape(), "block", "shed_tape")
     print("textures written to", OUT)
 
 

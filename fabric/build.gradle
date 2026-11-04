@@ -37,6 +37,11 @@ loom {
                 programArgs('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
                 vmArg('-Dthewake.demo2=true')
             }
+            // ./gradlew :fabric:runClient -PwakeDemo3 : stage the tempers as models and what they do, and screenshot them.
+            if (project.hasProperty('wakeDemo3')) {
+                programArgs('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
+                vmArg('-Dthewake.demo3=true')
+            }
         }
         server {
             server()
