@@ -1,0 +1,95 @@
+name: Release
+
+# Builds both jars and publishes them as a GitHub release.
+# Start it from the Actions tab (Run workflow, then give it a tag such as v1.0.1),
+# or push a tag that starts with "v". A tag with a hyphen in it (v1.0.0-test.1)
+# is published as a pre-release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag for the release, for example v1.0.1
+        required: true
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Check the tag
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9A-Za-z._-]+$ ]]; then
+            echo "Tag '$TAG' should look like v1.0.1" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build both loaders
+        run: ./gradlew build --no-daemon --stacktrace
+
+      - name: Check the jars
+        run: |
+          prop() { grep -m1 "^$1=" gradle.properties | cut -d= -f2-; }
+          version=$(prop version)
+          mc=$(prop minecraft_version)
+          for loader in neoforge fabric; do
+            jar="$loader/build/libs/thewake-$loader-$mc-$version.jar"
+            test -f "$jar"
+            listing=$(unzip -l "$jar")
+            for model in creature creature_uneasy creature_angry creature_furious; do
+              grep -q "assets/thewake/models/creature/$model.bin.gz" <<< "$listing" \
+                || { echo "$jar is missing $model.bin.gz" >&2; exit 1; }
+            done
+            echo "$jar: $(stat -c %s "$jar") bytes"
+          done
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prop() { grep -m1 "^$1=" gradle.properties | cut -d= -f2-; }
+          version=$(prop version)
+          mc=$(prop minecraft_version)
+          neoforge=$(prop neoforge_version)
+          loader=$(prop fabric_loader_version)
+          neojar="neoforge/build/libs/thewake-neoforge-$mc-$version.jar"
+          fabjar="fabric/build/libs/thewake-fabric-$mc-$version.jar"
+          notes="$RUNNER_TEMP/notes.md"
+          {
+            printf 'For Minecraft %s on Java 21. Download the one jar for your loader and put it in your `mods` folder:\n\n' "$mc"
+            printf -- '- **NeoForge** %s or newer: `%s`\n' "$neoforge" "${neojar##*/}"
+            printf -- '- **Fabric** Loader %s or newer, with Fabric API: `%s`\n\n' "$loader" "${fabjar##*/}"
+            printf 'Built from %s.\n\nSHA-256:\n```\n' "$GITHUB_SHA"
+            (cd "${neojar%/*}" && sha256sum "${neojar##*/}")
+            (cd "${fabjar%/*}" && sha256sum "${fabjar##*/}")
+            printf '```\n'
+          } > "$notes"
+          prerelease=""
+          if [[ "$TAG" == *-* ]]; then
+            prerelease="--prerelease"
+          fi
+          gh release create "$TAG" "$neojar" "$fabjar" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "The Wake ${TAG#v} for Minecraft $mc" \
+            --notes-file "$notes" \
+            $prerelease
