@@ -11,7 +11,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.network.Filterable;
 import net.minecraft.util.RandomSource;
@@ -29,7 +32,6 @@ import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.WallSignBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.LecternBlockEntity;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
@@ -52,9 +54,14 @@ public class LiminalPiece extends StructurePiece {
     private final LiminalStructure.Kind kind;
 
     public LiminalPiece(LiminalStructure.Kind kind, BlockPos origin, Direction facing) {
-        super(WakeContent.LIMINAL_PIECE.get(), 0, makeBoundingBox(origin.getX(), origin.getY(), origin.getZ(), facing, kind.width, kind.height, kind.depth));
+        super(WakeContent.LIMINAL_PIECE.get(), 0, footprint(kind, origin, facing));
         this.kind = kind;
         setOrientation(facing);
+    }
+
+    /** The box a piece of this kind fills with its corner at {@code origin}, turned to face {@code facing}. */
+    static BoundingBox footprint(LiminalStructure.Kind kind, BlockPos origin, Direction facing) {
+        return makeBoundingBox(origin.getX(), origin.getY(), origin.getZ(), facing, kind.width, kind.height, kind.depth);
     }
 
     public LiminalPiece(CompoundTag tag) {
@@ -158,7 +165,6 @@ public class LiminalPiece extends StructurePiece {
         BlockState wall = Blocks.WHITE_CONCRETE.defaultBlockState();
         BlockState trim = Blocks.RED_CONCRETE.defaultBlockState();
         BlockState floor = Blocks.POLISHED_ANDESITE.defaultBlockState();
-        BlockState glass = Blocks.GLASS_PANE.defaultBlockState();
         air(level, box, 0, 1, 0, 8, 6, 7);
         fill(level, box, 0, 0, 0, 8, 0, 7, floor);
         for (int x = 0; x <= 8; x++) {
@@ -174,11 +180,13 @@ public class LiminalPiece extends StructurePiece {
         fill(level, box, 0, 5, 0, 8, 5, 7, trim);
         fill(level, box, 1, 6, 1, 7, 6, 6, Blocks.SMOOTH_STONE_SLAB.defaultBlockState());
         // The windows and the door.
-        fill(level, box, 1, 2, 0, 3, 3, 0, glass);
-        fill(level, box, 5, 2, 0, 7, 3, 0, glass);
+        panes(level, box, 1, 2, 0, 3, 3, 0);
+        panes(level, box, 5, 2, 0, 7, 3, 0);
         door(level, box, Blocks.DARK_OAK_DOOR.defaultBlockState(), 4, 1, 0, Direction.SOUTH);
-        // After-hours returns, by the door: a slot, and the sign.
-        placeBlock(level, Blocks.IRON_TRAPDOOR.defaultBlockState(), 3, 1, -0 + 0, box);
+        // After-hours returns, by the door: a slot, and the sign, set into the front with a block
+        // behind it to hang on.
+        placeBlock(level, Blocks.IRON_TRAPDOOR.defaultBlockState(), 3, 1, 0, box);
+        placeBlock(level, wall, 5, 4, 1, box);
         sign(level, box, 5, 4, 0, Direction.SOUTH, "AFTER HOURS", "RETURNS", "", "please rewind");
         // Inside: the shelves, the counter, the machine.
         BlockState shelf = WakeContent.TAPE_SHELF.get().defaultBlockState();
@@ -194,7 +202,8 @@ public class LiminalPiece extends StructurePiece {
         }
         fill(level, box, 5, 1, 3, 7, 1, 3, Blocks.DARK_OAK_PLANKS.defaultBlockState());
         placeBlock(level, WakeContent.VCR.get().defaultBlockState().setValue(FacingBlock.FACING, Direction.SOUTH), 6, 2, 3, box);
-        placeBlock(level, Blocks.BLACK_CONCRETE.defaultBlockState(), 6, 3, 4, box);
+        // The set, on the counter beside the machine (the machine is too low to stand it on).
+        placeBlock(level, Blocks.BLACK_CONCRETE.defaultBlockState(), 7, 2, 3, box);
         createChest(level, box, random, 7, 1, 4, loot("video_store"));
         placeBlock(level, Blocks.GRAY_CARPET.defaultBlockState(), 3, 1, 3, box);
         placeBlock(level, Blocks.GRAY_CARPET.defaultBlockState(), 4, 1, 3, box);
@@ -290,7 +299,7 @@ public class LiminalPiece extends StructurePiece {
             }
         }
         fill(level, box, 0, 4, 1, 6, 4, 6, WakeContent.CEILING_TILE.get().defaultBlockState());
-        placeBlock(level, Blocks.GLASS_PANE.defaultBlockState(), 0, 2, 3, box);
+        panes(level, box, 0, 2, 3, 0, 2, 3);
         fill(level, box, 2, 1, 2, 4, 1, 4, Blocks.RED_CARPET.defaultBlockState());
         // The bed, its head to the back wall.
         BlockState bed = Blocks.WHITE_BED.defaultBlockState().setValue(BedBlock.FACING, Direction.NORTH);
@@ -299,8 +308,8 @@ public class LiminalPiece extends StructurePiece {
         placeBlock(level, Blocks.SPRUCE_PLANKS.defaultBlockState(), 2, 1, 5, box);
         placeBlock(level, Blocks.WHITE_CANDLE.defaultBlockState().setValue(CandleBlock.LIT, false), 2, 2, 5, box);
         createChest(level, box, random, 5, 1, 5, loot("bedroom"));
-        // A wardrobe door in the wall that opens onto the wall.
-        door(level, box, Blocks.SPRUCE_DOOR.defaultBlockState(), 6, 1, 3, Direction.WEST);
+        // A wardrobe door against the wall, that opens onto the wall.
+        door(level, box, Blocks.SPRUCE_DOOR.defaultBlockState(), 5, 1, 3, Direction.WEST);
     }
 
     // ---- the hallway ------------------------------------------------------------------------
@@ -326,10 +335,10 @@ public class LiminalPiece extends StructurePiece {
                 placeBlock(level, random.nextInt(7) == 0 ? stained : paper, 4, y, z, box);
             }
         }
-        // Doors down both sides, onto the wall behind them.
+        // Doors down both sides, flat against the walls: open one and there is the wallpaper.
         for (int z = 3; z < end - 1; z += 4) {
-            door(level, box, Blocks.OAK_DOOR.defaultBlockState(), 0, 1, z, Direction.EAST);
-            door(level, box, Blocks.OAK_DOOR.defaultBlockState(), 4, 1, z + 2 < end ? z + 2 : z, Direction.WEST);
+            door(level, box, Blocks.OAK_DOOR.defaultBlockState(), 1, 1, z, Direction.EAST);
+            door(level, box, Blocks.OAK_DOOR.defaultBlockState(), 3, 1, z + 2 < end ? z + 2 : z, Direction.WEST);
         }
         for (int z = 2; z < end; z += 6) {
             light(level, box, 2, 5, z, random.nextInt(4) > 0);
@@ -349,6 +358,26 @@ public class LiminalPiece extends StructurePiece {
         generateBox(level, box, x0, y0, z0, x1, y1, z1, state, state, false);
     }
 
+    /**
+     * Glass panes, joined up with what is round them once the chunk is finished. Vanilla only does
+     * that for fences, bars and ladders; a pane left as placed is a bare post, and the window looks
+     * empty.
+     */
+    private void panes(WorldGenLevel level, BoundingBox box, int x0, int y0, int z0, int x1, int y1, int z1) {
+        BlockState pane = Blocks.GLASS_PANE.defaultBlockState();
+        for (int x = x0; x <= x1; x++) {
+            for (int y = y0; y <= y1; y++) {
+                for (int z = z0; z <= z1; z++) {
+                    placeBlock(level, pane, x, y, z, box);
+                    BlockPos pos = getWorldPos(x, y, z);
+                    if (box.isInside(pos)) {
+                        level.getChunk(pos).markPosForPostprocessing(pos);
+                    }
+                }
+            }
+        }
+    }
+
     private void air(WorldGenLevel level, BoundingBox box, int x0, int y0, int z0, int x1, int y1, int z1) {
         generateBox(level, box, x0, y0, z0, x1, y1, z1, Blocks.AIR.defaultBlockState(), Blocks.AIR.defaultBlockState(), false);
     }
@@ -363,20 +392,32 @@ public class LiminalPiece extends StructurePiece {
         placeBlock(level, WakeContent.FLUORESCENT_LIGHT.get().defaultBlockState().setValue(FluorescentLightBlock.LIT, on), x, y, z, box);
     }
 
+    /**
+     * A wall sign with its lines on the front, waxed so that nobody edits it.
+     *
+     * <p>While the world is being generated the sign is not in a level yet, and
+     * {@link SignBlockEntity#setText} tells its level that it changed: that throws, and takes the
+     * whole chunk (and the game) down with it. So the text is loaded instead, the way structure
+     * templates load theirs.
+     */
     private void sign(WorldGenLevel level, BoundingBox box, int x, int y, int z, Direction facing, String... lines) {
         BlockPos pos = getWorldPos(x, y, z);
         if (!box.isInside(pos)) {
             return;
         }
         placeBlock(level, Blocks.SPRUCE_WALL_SIGN.defaultBlockState().setValue(WallSignBlock.FACING, facing), x, y, z, box);
-        BlockEntity be = level.getBlockEntity(pos);
-        if (be instanceof SignBlockEntity sign) {
-            SignText text = new SignText();
-            for (int i = 0; i < Math.min(4, lines.length); i++) {
-                text = text.setMessage(i, Component.literal(lines[i]));
-            }
-            sign.setText(text, true);
+        if (!(level.getBlockEntity(pos) instanceof SignBlockEntity sign)) {
+            return;
         }
+        SignText text = new SignText();
+        for (int i = 0; i < Math.min(4, lines.length); i++) {
+            text = text.setMessage(i, Component.literal(lines[i]));
+        }
+        RegistryOps<Tag> ops = level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+        CompoundTag tag = new CompoundTag();
+        SignText.DIRECT_CODEC.encodeStart(ops, text).resultOrPartial(TheWake.LOG::warn).ifPresent(t -> tag.put("front_text", t));
+        tag.putBoolean("is_waxed", true);
+        sign.loadWithComponents(tag, level.registryAccess());
     }
 
     private void lectern(WorldGenLevel level, BoundingBox box, int x, int y, int z, ItemStack book) {

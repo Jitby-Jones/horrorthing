@@ -36,11 +36,21 @@ neoForge {
                 programArguments.addAll('--quickPlaySingleplayer', 'demo', '--width', '1280', '--height', '720')
                 systemProperty('thewake.demo3', 'true')
             }
+            // ./gradlew :neoforge:runClient -PwakeDemo4 : generate its places near spawn as the world does,
+            // check them, and screenshot one of each (in a world called "structures").
+            if (project.hasProperty('wakeDemo4')) {
+                programArguments.addAll('--quickPlaySingleplayer', 'structures', '--width', '1280', '--height', '720')
+                systemProperty('thewake.demo4', 'true')
+            }
         }
         server {
             server()
             gameDirectory = project.file('runs/server')
             programArgument '--nogui'
+            // ./gradlew :neoforge:runServer -PwakeDemo4 : generate its places near spawn as the world does, and check them.
+            if (project.hasProperty('wakeDemo4')) {
+                systemProperty('thewake.demo4', 'true')
+            }
         }
     }
     mods {

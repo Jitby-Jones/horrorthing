@@ -10,8 +10,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.NoiseColumn;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureType;
 
@@ -64,29 +65,31 @@ public class LiminalStructure extends Structure {
     @Override
     protected Optional<GenerationStub> findGenerationPoint(GenerationContext context) {
         ChunkPos chunk = context.chunkPos();
-        int x = chunk.getMinBlockX() + 2;
-        int z = chunk.getMinBlockZ() + 2;
-        // Level enough: the four corners within a few blocks of each other, and dry.
-        int[] heights = new int[4];
-        int[][] corners = {{0, 0}, {kind.width, 0}, {0, kind.depth}, {kind.width, kind.depth}};
+        ChunkGenerator generator = context.chunkGenerator();
+        Direction facing = Direction.Plane.HORIZONTAL.getRandomDirection(context.random());
+        BlockPos corner = new BlockPos(chunk.getMinBlockX() + 2, 0, chunk.getMinBlockZ() + 2);
+        // Where it will actually stand: turned east or west, it is long the other way.
+        BoundingBox foot = LiminalPiece.footprint(kind, corner, facing);
+        int[][] points = {
+                {foot.minX(), foot.minZ()}, {foot.maxX(), foot.minZ()}, {foot.minX(), foot.maxZ()}, {foot.maxX(), foot.maxZ()},
+                {(foot.minX() + foot.maxX()) / 2, (foot.minZ() + foot.maxZ()) / 2}};
+        // Level enough (its corners and middle within a few blocks of each other), and dry.
         int min = Integer.MAX_VALUE;
         int max = Integer.MIN_VALUE;
-        for (int i = 0; i < 4; i++) {
-            heights[i] = context.chunkGenerator().getFirstOccupiedHeight(x + corners[i][0], z + corners[i][1], Heightmap.Types.WORLD_SURFACE_WG,
-                    context.heightAccessor(), context.randomState());
-            min = Math.min(min, heights[i]);
-            max = Math.max(max, heights[i]);
+        for (int[] p : points) {
+            int ground = generator.getFirstOccupiedHeight(p[0], p[1], Heightmap.Types.OCEAN_FLOOR_WG, context.heightAccessor(), context.randomState());
+            int top = generator.getFirstOccupiedHeight(p[0], p[1], Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState());
+            if (top != ground) {
+                // Water over that part.
+                return Optional.empty();
+            }
+            min = Math.min(min, ground);
+            max = Math.max(max, ground);
         }
-        if (max - min > 6) {
+        if (max - min > 6 || min <= generator.getSeaLevel()) {
             return Optional.empty();
         }
-        int y = min;
-        NoiseColumn column = context.chunkGenerator().getBaseColumn(x + kind.width / 2, z + kind.depth / 2, context.heightAccessor(), context.randomState());
-        if (!column.getBlock(y - 1).getFluidState().isEmpty() || y <= context.chunkGenerator().getSeaLevel()) {
-            return Optional.empty();
-        }
-        Direction facing = Direction.Plane.HORIZONTAL.getRandomDirection(context.random());
-        BlockPos origin = new BlockPos(x, y, z);
+        BlockPos origin = new BlockPos(corner.getX(), min, corner.getZ());
         return Optional.of(new GenerationStub(origin, builder -> builder.addPiece(new LiminalPiece(kind, origin, facing))));
     }
 

@@ -165,6 +165,14 @@ neck over a wall and up a pillar, the chewed-tape run, its marks, a string, its 
 ./gradlew :fabric:runClient -PwakeDemo3
 ```
 
+A fourth generates every one of its places round spawn the way the world does (through the chunk
+pipeline, as if you had walked up to it), checks what came out, logs it, and screenshots one of
+each. On a dedicated server (`runServer -PwakeDemo4`) it only runs the check:
+
+```bash
+./gradlew :fabric:runClient -PwakeDemo4
+```
+
 The creature was designed as pixel art first (`tools/concepts/`, sheets in
 [`docs/concepts/`](docs/concepts/)) and is built procedurally in headless Blender, with no GUI and
 no MCP server: Blender as a Python module. Its head is drawn by `tools/creature/card.py` from the

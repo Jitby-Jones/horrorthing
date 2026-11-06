@@ -25,6 +25,7 @@ public final class WakeHooks {
 
     public static void onServerTick(MinecraftServer server) {
         Director.tick(server);
+        io.github.jitbyjones.thewake.haunt.DemoStructures.tick(server);
     }
 
     /** Singleplayer, paused: only the creature moves (see {@code IntegratedServerMixin}). */
@@ -53,6 +54,7 @@ public final class WakeHooks {
         io.github.jitbyjones.thewake.haunt.DemoScript.onJoin(player);
         io.github.jitbyjones.thewake.haunt.DemoExpansion.onJoin(player);
         io.github.jitbyjones.thewake.haunt.DemoForms.onJoin(player);
+        io.github.jitbyjones.thewake.haunt.DemoStructures.onJoin(player);
     }
 
     public static void onLeave(ServerPlayer player) {

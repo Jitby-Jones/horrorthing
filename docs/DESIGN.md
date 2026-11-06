@@ -1586,3 +1586,52 @@ was run on both loaders. Both dedicated servers boot with everything above.
   twice that session.
 - **The traces.** A spike mark on the floor, a string from the ceiling, and its tape across a
   doorway.
+
+## Fix: its places took the world down
+
+Reported from playing the released jar: go near some of its places and the world breaks. Reproduced
+on a fresh dedicated server: generating the chunk with the watchtower in it threw during feature
+placement, and the server never recovered (the chunk could never finish, so anything waiting on it
+waited forever). In singleplayer it does it again on every reload near the same place.
+
+- **Why.** The three places with a sign (the watchtower, the video shop, the waiting room) wrote its
+  words with `SignBlockEntity.setText`, which tells the sign's level that it changed. While a chunk
+  is being generated the sign is not in a level yet, so that threw. The bedroom and the hallway have
+  no sign, which is why it was only some of them.
+  - It got through because the earlier demos built the places directly into a loaded world, where a
+    sign does have a level. Nothing ever went through world generation itself.
+- **The fix.** The words are loaded into the sign the way structure templates load theirs, with no
+  call to the level. The signs are waxed, so right-clicking a notice does not open the editor.
+- **Also fixed on the way:**
+  - Where a place may stand was checked on its footprint before turning. Turned east or west, the
+    26-block hallway was tested on ground it does not stand on. Now the corners and middle of the
+    turned footprint are tested, and water over any of them rules the spot out.
+  - The video shop's sign hung on nothing; it has the wall behind it now. Its television floated
+    behind the machine. The machine is too low to stand a set on, so the set is on the counter
+    beside it.
+  - Glass panes were left as placed: bare posts, so the shop's windows and the bedroom's looked
+    like holes. Vanilla only reshapes fences, bars and ladders once a structure is placed; the
+    panes are now marked for the same update, and join up.
+  - The hallway's side doors and the bedroom's wardrobe opened onto the field outside. They now
+    stand flat against the wall, so opening one shows the wallpaper, as intended.
+
+### Verified in world generation
+
+A fourth demo (`-PwakeDemo4`) walks the structure grid round spawn. It generates each of its places
+through the chunk pipeline, the way a player walking up to it would, then checks what came out:
+
+- the words on every sign, and the block it hangs on;
+- the loot table on every chest, and the book on the stand;
+- the wallpaper behind every door that should open onto it;
+- every window pane joined up.
+
+On a dedicated server it only runs the check. In singleplayer it then stands you in front of (and
+inside) one of each kind and screenshots it.
+
+- **In the world that crashed**, seed 1842 on NeoForge: 12 places in every facing (4 watchtowers,
+  2 video shops, 2 waiting rooms, a bedroom, 3 hallways), with no errors and no problems. That
+  includes the watchtower that had taken the server down. Some of its starts had been decided by
+  the old code (`/locate` saves them), which is why its mix differs from a fresh world's.
+- **Fresh worlds**, the same seed, on NeoForge and on Fabric alike: the same 12 places (5
+  watchtowers, 2 video shops, 2 waiting rooms, a bedroom, 2 hallways). No errors, no problems,
+  every pane joined.

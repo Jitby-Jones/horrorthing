@@ -77,6 +77,7 @@ public final class WakeClient {
         DemoClient.tick();
         DemoExpansionClient.tick();
         DemoFormsClient.tick();
+        DemoStructuresClient.tick();
     }
 
     /**
